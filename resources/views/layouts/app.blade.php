@@ -43,6 +43,7 @@
 
         @stack('modals')
 
+        <script src="https://cdn.jsdelivr.net/npm/vue"></script>
         @livewireScripts
         @stack('scripts')
     </body>

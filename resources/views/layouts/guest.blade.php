@@ -22,6 +22,7 @@
             {{ $slot }}
         </div>
 
+        <script src="https://cdn.jsdelivr.net/npm/vue"></script>
         @livewireScripts
     </body>
 </html>
