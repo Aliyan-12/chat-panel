@@ -11,11 +11,12 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class NewMessage
+class NewMessage implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    protected $conversation = null;
+    public $conversation;
+    
     /**
      * Create a new event instance.
      */
@@ -32,7 +33,19 @@ class NewMessage
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('groups.'. $this->conversation->group->id),
+            new PrivateChannel('groups.'. $this->conversation->group_id),
+        ];
+    }
+    
+    /**
+     * Get the data to broadcast.
+     *
+     * @return array
+     */
+    public function broadcastWith(): array
+    {
+        return [
+            'conversation' => $this->conversation->load('user'),
         ];
     }
 }

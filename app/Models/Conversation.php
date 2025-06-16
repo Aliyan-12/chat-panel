@@ -17,8 +17,8 @@ class Conversation extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function conversation()
+    public function group()
     {
-        return $this->belongsTo(Conversation::class);
+        return $this->belongsTo(Group::class);
     }
 }
