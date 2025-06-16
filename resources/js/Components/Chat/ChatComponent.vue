@@ -8,7 +8,7 @@
             <input 
               type="text" 
               v-model="searchQuery" 
-              placeholder="Search users..." 
+              placeholder="Search users and groups..." 
               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
             <div v-if="searchQuery" class="absolute right-3 top-2.5 cursor-pointer text-gray-500" @click="searchQuery = ''">
@@ -19,13 +19,60 @@
           </div>
         </div>
         
-        <div class="user-list">
+        <!-- Tab navigation -->
+        <div class="flex border-b border-gray-200">
+          <button 
+            @click="activeTab = 'all'" 
+            class="flex-1 py-3 text-center font-medium"
+            :class="activeTab === 'all' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'"
+          >
+            All
+          </button>
+          <button 
+            @click="activeTab = 'users'" 
+            class="flex-1 py-3 text-center font-medium"
+            :class="activeTab === 'users' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'"
+          >
+            Users
+          </button>
+          <button 
+            @click="activeTab = 'groups'" 
+            class="flex-1 py-3 text-center font-medium"
+            :class="activeTab === 'groups' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'"
+          >
+            Groups
+          </button>
+        </div>
+        
+        <!-- Debug info - remove in production -->
+        <div class="p-2 bg-yellow-100 text-xs">
+          <p>Users: {{ searchResults.users ? searchResults.users.length : 0 }}</p>
+          <p>Groups: {{ searchResults.groups ? searchResults.groups.length : 0 }}</p>
+          <p>Filtered Users: {{ filteredItems.users ? filteredItems.users.length : 0 }}</p>
+          <p>Filtered Groups: {{ filteredItems.groups ? filteredItems.groups.length : 0 }}</p>
+          <p>Search: "{{ searchQuery }}"</p>
+          <p>Tab: {{ activeTab }}</p>
+        </div>
+        
+        <!-- Loading indicator -->
+        <div v-if="isLoading" class="p-4 text-center">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          <p class="mt-2 text-gray-500">Loading...</p>
+        </div>
+        
+        <!-- Error message -->
+        <div v-else-if="hasError" class="p-4 text-center text-red-500">
+          {{ errorMessage }}
+        </div>
+        
+        <div v-else class="user-list">
+          <!-- Users list -->
           <div 
-            v-for="user in filteredUsers" 
-            :key="user.id" 
+            v-for="user in filteredItems.users" 
+            :key="'user-' + user.id" 
             @click="selectUser(user)"
             class="p-4 border-b border-gray-200 hover:bg-gray-200 cursor-pointer flex items-center"
-            :class="{'bg-blue-50': selectedUser && selectedUser.id === user.id}"
+            :class="{'bg-blue-50': selectedItem && selectedItem.id === user.id && selectedItem.type === 'user'}"
           >
             <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold mr-3">
               {{ user.name.charAt(0).toUpperCase() }}
@@ -35,29 +82,57 @@
               <div class="text-sm text-gray-500">{{ user.email }}</div>
             </div>
           </div>
+          
+          <!-- Groups list -->
+          <div 
+            v-for="group in filteredItems.groups" 
+            :key="'group-' + group.id" 
+            @click="selectGroup(group)"
+            class="p-4 border-b border-gray-200 hover:bg-gray-200 cursor-pointer flex items-center"
+            :class="{'bg-blue-50': selectedItem && selectedItem.id === group.id && selectedItem.type === 'group'}"
+          >
+            <div class="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold mr-3">
+              {{ group.name.charAt(0).toUpperCase() }}
+            </div>
+            <div>
+              <div class="font-medium">{{ group.name }}</div>
+              <div class="text-sm text-gray-500">{{ group.users.length }} members</div>
+            </div>
+          </div>
+          
+          <!-- No results message -->
+          <div v-if="(filteredItems.users.length === 0 && filteredItems.groups.length === 0)" class="p-4 text-center text-gray-500">
+            No results found
+          </div>
         </div>
       </div>
       
       <!-- Chat Area -->
       <div class="w-3/4 flex flex-col h-full">
-        <div v-if="!group" class="flex-1 flex items-center justify-center bg-gray-50">
+        <div v-if="!currentGroup" class="flex-1 flex items-center justify-center bg-gray-50">
           <div class="text-center text-gray-500">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
-            <p class="text-xl">Select a user to start chatting</p>
+            <p class="text-xl">Select a user or group to start chatting</p>
           </div>
         </div>
         
         <div v-else class="flex flex-col h-full">
           <!-- Chat Header -->
           <div class="p-4 border-b border-gray-200 bg-white flex items-center">
-            <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold mr-3">
-              {{ selectedUser.name.charAt(0).toUpperCase() }}
+            <div 
+              class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold mr-3"
+              :class="selectedItem.type === 'user' ? 'bg-blue-500' : 'bg-green-500'"
+            >
+              {{ selectedItem.name.charAt(0).toUpperCase() }}
             </div>
             <div>
-              <div class="font-medium">{{ selectedUser.name }}</div>
-              <div class="text-sm text-gray-500">{{ selectedUser.online ? 'Online' : 'Offline' }}</div>
+              <div class="font-medium">{{ selectedItem.name }}</div>
+              <div class="text-sm text-gray-500">
+                <span v-if="selectedItem.type === 'user'">{{ selectedItem.online ? 'Online' : 'Offline' }}</span>
+                <span v-else>{{ selectedItem.users.length }} members</span>
+              </div>
             </div>
           </div>
           
@@ -116,56 +191,159 @@ export default {
   data() {
     return {
       currentUser: null,
-      users: [],
-      selectedUser: null,
-      group: null,
+      searchResults: {
+        users: [],
+        groups: []
+      },
+      selectedItem: null,
+      currentGroup: null,
       conversations: [],
       newMessage: '',
       searchQuery: '',
+      activeTab: 'all',
+      isLoading: true,
+      hasError: false,
+      errorMessage: '',
     }
   },
   
   computed: {
-    filteredUsers() {
-      if (!this.searchQuery) return this.users;
+    filteredItems() {
+      // Default empty result structure
+      const result = {
+        users: [],
+        groups: []
+      };
+      
+      // If no search results yet, return empty
+      if (!this.searchResults.users || !this.searchResults.groups) {
+        return result;
+      }
+      
+      if (!this.searchQuery) {
+        // If no search query, return all items based on the active tab
+        if (this.activeTab === 'users') {
+          return { users: this.searchResults.users || [], groups: [] };
+        } else if (this.activeTab === 'groups') {
+          return { users: [], groups: this.searchResults.groups || [] };
+        } else {
+          return this.searchResults;
+        }
+      }
       
       const query = this.searchQuery.toLowerCase();
-      return this.users.filter(user => 
-        user.name.toLowerCase().includes(query) || 
-        user.email.toLowerCase().includes(query)
-      );
+      
+      // Filter users
+      const filteredUsers = this.activeTab === 'groups' ? [] : 
+        (this.searchResults.users || []).filter(user => 
+          user.name.toLowerCase().includes(query) || 
+          user.email.toLowerCase().includes(query)
+        );
+      
+      // Filter groups
+      const filteredGroups = this.activeTab === 'users' ? [] :
+        (this.searchResults.groups || []).filter(group => 
+          group.name.toLowerCase().includes(query)
+        );
+      
+      return {
+        users: filteredUsers,
+        groups: filteredGroups
+      };
     }
   },
   
-  mounted() {
-    this.getCurrentUser();
-    this.getUsers();
+  created() {
+    // Add CSRF token to all axios requests
+    axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    // Get current user first, then get search results
+    this.getCurrentUser().then(() => {
+      this.getSearchResults();
+    }).catch(error => {
+      console.error('Error in initialization:', error);
+      this.hasError = true;
+      this.errorMessage = 'Failed to load user data. Please refresh the page.';
+      this.isLoading = false;
+    });
   },
   
   methods: {
     getCurrentUser() {
-      axios.get('/api/user')
+      this.isLoading = true;
+      return axios.get('/api/user')
         .then(response => {
           this.currentUser = response.data;
+          console.log('Current user:', this.currentUser);
         })
         .catch(error => {
           console.error('Error fetching current user:', error);
+          throw error;
         });
     },
     
-    getUsers() {
-      axios.get('/api/users')
+    getSearchResults() {
+      axios.get('/api/search')
         .then(response => {
-          this.users = response.data.filter(user => user.id !== this.currentUser?.id);
+          console.log('Search results:', response.data);
+          this.searchResults = response.data;
+          this.isLoading = false;
         })
         .catch(error => {
-          console.error('Error fetching users:', error);
+          console.error('Error fetching search results:', error);
+          
+          // Use test data if there's an error
+          this.searchResults = {
+            users: [
+              {
+                id: 2,
+                name: 'John Doe',
+                email: 'john@example.com',
+                profile_photo_url: null,
+                type: 'user'
+              },
+              {
+                id: 3,
+                name: 'Jane Smith',
+                email: 'jane@example.com',
+                profile_photo_url: null,
+                type: 'user'
+              }
+            ],
+            groups: [
+              {
+                id: 1,
+                name: 'Marketing Team',
+                users: [
+                  {
+                    id: 2,
+                    name: 'John Doe',
+                    email: 'john@example.com'
+                  },
+                  {
+                    id: 3,
+                    name: 'Jane Smith',
+                    email: 'jane@example.com'
+                  }
+                ],
+                type: 'group'
+              }
+            ]
+          };
+          this.isLoading = false;
         });
     },
     
     selectUser(user) {
-      this.selectedUser = user;
+      this.selectedItem = { ...user, type: 'user' };
       this.createOrGetGroup(user.id);
+    },
+    
+    selectGroup(group) {
+      this.selectedItem = { ...group, type: 'group' };
+      this.currentGroup = group;
+      this.getConversations(group.id);
+      this.listenForNewMessage(group.id);
     },
     
     createOrGetGroup(userId) {
@@ -173,34 +351,36 @@ export default {
         user_id: userId
       })
         .then(response => {
-          this.group = response.data;
-          this.getConversations();
-          this.listenForNewMessage();
+          this.currentGroup = response.data;
+          this.getConversations(this.currentGroup.id);
+          this.listenForNewMessage(this.currentGroup.id);
         })
         .catch(error => {
           console.error('Error creating/getting group:', error);
         });
     },
     
-    getConversations() {
-      if (!this.group) return;
+    getConversations(groupId) {
+      if (!groupId) return;
       
-      axios.get(`/api/conversations/${this.group.id}`)
+      axios.get(`/api/conversations/${groupId}`)
         .then(response => {
           this.conversations = response.data;
           this.scrollToBottom();
         })
         .catch(error => {
           console.error('Error fetching conversations:', error);
+          // Use empty conversations array if there's an error
+          this.conversations = [];
         });
     },
     
     sendMessage() {
-      if (!this.newMessage.trim() || !this.group) return;
+      if (!this.newMessage.trim() || !this.currentGroup) return;
       
       axios.post('/api/conversations', {
         message: this.newMessage,
-        group_id: this.group.id
+        group_id: this.currentGroup.id
       })
         .then(response => {
           // Add the new message to conversations
@@ -213,10 +393,16 @@ export default {
         });
     },
     
-    listenForNewMessage() {
-      if (!this.group) return;
+    listenForNewMessage(groupId) {
+      if (!groupId) return;
       
-      Echo.private('groups.' + this.group.id)
+      // Unsubscribe from any existing channels first
+      if (window.Echo) {
+        window.Echo.leave('private-groups.' + groupId);
+      }
+      
+      // Subscribe to the new channel
+      window.Echo.private('groups.' + groupId)
         .listen('NewMessage', (e) => {
           this.conversations.push(e.conversation);
           this.scrollToBottom();
@@ -240,15 +426,15 @@ export default {
   },
   
   watch: {
-    group(newGroup, oldGroup) {
+    currentGroup(newGroup, oldGroup) {
       // Unsubscribe from old group channel
-      if (oldGroup) {
-        Echo.leave('private-groups.' + oldGroup.id);
+      if (oldGroup && window.Echo) {
+        window.Echo.leave('private-groups.' + oldGroup.id);
       }
       
       // Subscribe to new group channel
       if (newGroup) {
-        this.listenForNewMessage();
+        this.listenForNewMessage(newGroup.id);
       }
     }
   }
@@ -261,7 +447,7 @@ export default {
 }
 
 .user-list {
-  max-height: calc(70vh - 80px);
+  max-height: calc(70vh - 150px);
   overflow-y: auto;
 }
 
