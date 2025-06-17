@@ -7,18 +7,28 @@ use Illuminate\Database\Eloquent\Model;
 class Conversation extends Model
 {
     protected $fillable = [
-        'message',
-        'user_id',
+        'sender_id',
+        'reciever_id',
         'group_id',
     ];
 
-    public function user()
+    public function sender()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'sender_id');
+    }
+
+    public function reciever()
+    {
+        return $this->belongsTo(User::class, 'reciever_id');
     }
 
     public function group()
     {
-        return $this->belongsTo(Group::class);
+        return $this->belongsTo(Group::class, 'group_id');
+    }
+
+    public function messages()
+    {
+        return $this->hasMany(Message::class);
     }
 }

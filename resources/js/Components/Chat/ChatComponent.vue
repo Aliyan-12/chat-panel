@@ -202,6 +202,10 @@ const isLoading = ref(true);
 const hasError = ref(false);
 const errorMessage = ref('');
 const messagesContainer = ref(null);
+const currentConversation = ref(null);
+const showCreateGroupModal = ref(false);
+const groupUsers = ref([]);
+const selectedGroupUsers = ref([]);
 
 const filteredItems = computed(() => {
   const result = { users: [], groups: [] };
@@ -255,70 +259,71 @@ function getSearchResults() {
     });
 }
 
+async function getOrCreateIndividualConversation(userId) {
+  isLoading.value = true;
+  try {
+    const res = await axios.get('/conversations', { params: { user_id: userId } });
+    currentConversation.value = res.data.conversation;
+    conversations.value = res.data.messages;
+    isLoading.value = false;
+  } catch (e) {
+    isLoading.value = false;
+  }
+}
+
+async function getGroupConversation(groupId) {
+  isLoading.value = true;
+  try {
+    const res = await axios.get(`/conversations/${groupId}`);
+    currentConversation.value = res.data.conversation;
+    conversations.value = res.data.messages;
+    isLoading.value = false;
+  } catch (e) {
+    isLoading.value = false;
+  }
+}
+
 function selectUser(user) {
   selectedItem.value = { ...user, type: 'user' };
-  createOrGetGroup(user.id);
+  getOrCreateIndividualConversation(user.id);
 }
 
 function selectGroup(group) {
   selectedItem.value = { ...group, type: 'group' };
-  currentGroup.value = group;
-  getConversations(group.id);
-  listenForNewMessage(group.id);
+  getGroupConversation(group.id);
 }
 
-function createOrGetGroup(userId) {
-  axios.post('/groups/create-or-get', {
-    user_id: userId
-  })
-    .then(response => {
-      currentGroup.value = response.data;
-      getConversations(currentGroup.value.id);
-      listenForNewMessage(currentGroup.value.id);
-    })
-    .catch(error => {
-      // Handle error silently
+async function sendMessage() {
+  if (!newMessage.value.trim() || !currentConversation.value) return;
+  try {
+    const res = await axios.post('/conversations', {
+      message: newMessage.value,
+      conversation_id: currentConversation.value.id
     });
+    conversations.value.push(res.data);
+    newMessage.value = '';
+    scrollToBottom();
+  } catch (e) {}
 }
 
-function getConversations(groupId) {
-  if (!groupId) return;
-  axios.get(`/conversations/${groupId}`)
-    .then(response => {
-      conversations.value = response.data;
-      scrollToBottom();
-    })
-    .catch(error => {
-      conversations.value = [];
-    });
+function openCreateGroupModal() {
+  showCreateGroupModal.value = true;
+  // Load all users for selection
+  axios.get('/users').then(res => {
+    groupUsers.value = res.data.users || res.data;
+  });
 }
 
-function sendMessage() {
-  if (!newMessage.value.trim() || !currentGroup.value) return;
-  axios.post('/conversations', {
-    message: newMessage.value,
-    group_id: currentGroup.value.id
-  })
-    .then(response => {
-      conversations.value.push(response.data);
-      newMessage.value = '';
-      scrollToBottom();
-    })
-    .catch(error => {
-      // Handle error silently
+async function createGroup() {
+  if (selectedGroupUsers.value.length < 1) return;
+  try {
+    const res = await axios.post('/groups/create-or-get', {
+      user_ids: selectedGroupUsers.value
     });
-}
-
-function listenForNewMessage(groupId) {
-  if (!groupId) return;
-  if (window.Echo) {
-    window.Echo.leave('private-groups.' + groupId);
-  }
-  window.Echo.private('groups.' + groupId)
-    .listen('NewMessage', (e) => {
-      conversations.value.push(e.conversation);
-      scrollToBottom();
-    });
+    showCreateGroupModal.value = false;
+    selectedGroupUsers.value = [];
+    getGroupConversation(res.data.group.id);
+  } catch (e) {}
 }
 
 function scrollToBottom() {
@@ -337,10 +342,10 @@ function formatTime(timestamp) {
 
 watch(currentGroup, (newGroup, oldGroup) => {
   if (oldGroup && window.Echo) {
-    window.Echo.leave('private-groups.' + oldGroup.id);
+    window.Echo.leave('groups.' + oldGroup.id);
   }
   if (newGroup) {
-    listenForNewMessage(newGroup.id);
+    listenForNewMessage(newGroup.id, 'group');
   }
 });
 

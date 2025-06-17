@@ -15,5 +15,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+    
+    Route::get('/users', [UserController::class, 'index']);
+    Route::get('/search', [UserController::class, 'search']);
+    
+    Route::post('/groups/create-or-get', [GroupController::class, 'createOrGet']);
 
+    // Individual conversation (with user_id param)
+    Route::get('/conversations', [ConversationController::class, 'individualOrList']);
+    // Group conversation
+    Route::get('/conversations/{group}', [ConversationController::class, 'groupConversation']);
+    // Send message
+    Route::post('/conversations', [ConversationController::class, 'store']);
 });

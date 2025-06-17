@@ -47,7 +47,7 @@ Route::middleware('auth')->group(function () {
     
     Route::post('/groups/create-or-get', [ApiGroupController::class, 'createOrGet']);
 
-    Route::get('/conversations/{group}', [ApiConversationController::class, 'index']);
+    Route::get('/conversations/{conversation}', [ApiConversationController::class, 'index']);
     Route::post('/conversations', [ApiConversationController::class, 'store']); 
 });
 

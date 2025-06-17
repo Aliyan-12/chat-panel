@@ -69,6 +69,21 @@ class User extends Authenticatable
         return $this->belongsToMany(Group::class, 'group_user');
     }
 
+    public function conversationsOne()
+    {
+        return $this->hasMany(Conversation::class, 'user_one_id');
+    }
+
+    public function conversationsTwo()
+    {
+        return $this->hasMany(Conversation::class, 'user_two_id');
+    }
+
+    public function messages()
+    {
+        return $this->hasMany(Message::class);
+    }
+
     public function getProfilePhotoUrlAttribute()
     {
         return 'https://ui-avatars.com/api/?name=' . urlencode($this->name);
