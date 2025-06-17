@@ -8,5 +8,5 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 });
 
 Broadcast::channel('groups.{group}', function ($user, Group $group) {
-    return $group->hasUser($user->id);
+    return $group->users()->where('user_id', $user->id)->exists();
 });

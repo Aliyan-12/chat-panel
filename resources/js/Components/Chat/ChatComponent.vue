@@ -186,259 +186,175 @@
   </div>
 </template>
 
-<script>
-export default {
-  data() {
-    return {
-      currentUser: null,
-      searchResults: {
-        users: [],
-        groups: []
-      },
-      selectedItem: null,
-      currentGroup: null,
-      conversations: [],
-      newMessage: '',
-      searchQuery: '',
-      activeTab: 'all',
-      isLoading: true,
-      hasError: false,
-      errorMessage: '',
-    }
-  },
-  
-  computed: {
-    filteredItems() {
-      // Default empty result structure
-      const result = {
-        users: [],
-        groups: []
-      };
-      
-      // If no search results yet, return empty
-      if (!this.searchResults.users || !this.searchResults.groups) {
-        return result;
-      }
-      
-      if (!this.searchQuery) {
-        // If no search query, return all items based on the active tab
-        if (this.activeTab === 'users') {
-          return { users: this.searchResults.users || [], groups: [] };
-        } else if (this.activeTab === 'groups') {
-          return { users: [], groups: this.searchResults.groups || [] };
-        } else {
-          return this.searchResults;
-        }
-      }
-      
-      const query = this.searchQuery.toLowerCase();
-      
-      // Filter users
-      const filteredUsers = this.activeTab === 'groups' ? [] : 
-        (this.searchResults.users || []).filter(user => 
-          user.name.toLowerCase().includes(query) || 
-          user.email.toLowerCase().includes(query)
-        );
-      
-      // Filter groups
-      const filteredGroups = this.activeTab === 'users' ? [] :
-        (this.searchResults.groups || []).filter(group => 
-          group.name.toLowerCase().includes(query)
-        );
-      
-      return {
-        users: filteredUsers,
-        groups: filteredGroups
-      };
-    }
-  },
-  
-  created() {
-    // Add CSRF token to all axios requests
-    axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    
-    // Get current user first, then get search results
-    this.getCurrentUser().then(() => {
-      this.getSearchResults();
-    }).catch(error => {
-      console.error('Error in initialization:', error);
-      this.hasError = true;
-      this.errorMessage = 'Failed to load user data. Please refresh the page.';
-      this.isLoading = false;
-    });
-  },
-  
-  methods: {
-    getCurrentUser() {
-      this.isLoading = true;
-      return axios.get('/api/user')
-        .then(response => {
-          this.currentUser = response.data;
-          console.log('Current user:', this.currentUser);
-        })
-        .catch(error => {
-          console.error('Error fetching current user:', error);
-          throw error;
-        });
-    },
-    
-    getSearchResults() {
-      axios.get('/api/search')
-        .then(response => {
-          console.log('Search results:', response.data);
-          this.searchResults = response.data;
-          this.isLoading = false;
-        })
-        .catch(error => {
-          console.error('Error fetching search results:', error);
-          
-          // Use test data if there's an error
-          this.searchResults = {
-            users: [
-              {
-                id: 2,
-                name: 'John Doe',
-                email: 'john@example.com',
-                profile_photo_url: null,
-                type: 'user'
-              },
-              {
-                id: 3,
-                name: 'Jane Smith',
-                email: 'jane@example.com',
-                profile_photo_url: null,
-                type: 'user'
-              }
-            ],
-            groups: [
-              {
-                id: 1,
-                name: 'Marketing Team',
-                users: [
-                  {
-                    id: 2,
-                    name: 'John Doe',
-                    email: 'john@example.com'
-                  },
-                  {
-                    id: 3,
-                    name: 'Jane Smith',
-                    email: 'jane@example.com'
-                  }
-                ],
-                type: 'group'
-              }
-            ]
-          };
-          this.isLoading = false;
-        });
-    },
-    
-    selectUser(user) {
-      this.selectedItem = { ...user, type: 'user' };
-      this.createOrGetGroup(user.id);
-    },
-    
-    selectGroup(group) {
-      this.selectedItem = { ...group, type: 'group' };
-      this.currentGroup = group;
-      this.getConversations(group.id);
-      this.listenForNewMessage(group.id);
-    },
-    
-    createOrGetGroup(userId) {
-      axios.post('/api/groups/create-or-get', {
-        user_id: userId
-      })
-        .then(response => {
-          this.currentGroup = response.data;
-          this.getConversations(this.currentGroup.id);
-          this.listenForNewMessage(this.currentGroup.id);
-        })
-        .catch(error => {
-          console.error('Error creating/getting group:', error);
-        });
-    },
-    
-    getConversations(groupId) {
-      if (!groupId) return;
-      
-      axios.get(`/api/conversations/${groupId}`)
-        .then(response => {
-          this.conversations = response.data;
-          this.scrollToBottom();
-        })
-        .catch(error => {
-          console.error('Error fetching conversations:', error);
-          // Use empty conversations array if there's an error
-          this.conversations = [];
-        });
-    },
-    
-    sendMessage() {
-      if (!this.newMessage.trim() || !this.currentGroup) return;
-      
-      axios.post('/api/conversations', {
-        message: this.newMessage,
-        group_id: this.currentGroup.id
-      })
-        .then(response => {
-          // Add the new message to conversations
-          this.conversations.push(response.data);
-          this.newMessage = '';
-          this.scrollToBottom();
-        })
-        .catch(error => {
-          console.error('Error sending message:', error);
-        });
-    },
-    
-    listenForNewMessage(groupId) {
-      if (!groupId) return;
-      
-      // Unsubscribe from any existing channels first
-      if (window.Echo) {
-        window.Echo.leave('private-groups.' + groupId);
-      }
-      
-      // Subscribe to the new channel
-      window.Echo.private('groups.' + groupId)
-        .listen('NewMessage', (e) => {
-          this.conversations.push(e.conversation);
-          this.scrollToBottom();
-        });
-    },
-    
-    scrollToBottom() {
-      this.$nextTick(() => {
-        if (this.$refs.messagesContainer) {
-          this.$refs.messagesContainer.scrollTop = this.$refs.messagesContainer.scrollHeight;
-        }
-      });
-    },
-    
-    formatTime(timestamp) {
-      if (!timestamp) return '';
-      
-      const date = new Date(timestamp);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-  },
-  
-  watch: {
-    currentGroup(newGroup, oldGroup) {
-      // Unsubscribe from old group channel
-      if (oldGroup && window.Echo) {
-        window.Echo.leave('private-groups.' + oldGroup.id);
-      }
-      
-      // Subscribe to new group channel
-      if (newGroup) {
-        this.listenForNewMessage(newGroup.id);
-      }
+<script setup>
+import { ref, computed, watch, nextTick, onMounted } from 'vue';
+import axios from 'axios';
+
+const currentUser = ref(null);
+const searchResults = ref({ users: [], groups: [] });
+const selectedItem = ref(null);
+const currentGroup = ref(null);
+const conversations = ref([]);
+const newMessage = ref('');
+const searchQuery = ref('');
+const activeTab = ref('all');
+const isLoading = ref(true);
+const hasError = ref(false);
+const errorMessage = ref('');
+const messagesContainer = ref(null);
+
+const filteredItems = computed(() => {
+  const result = { users: [], groups: [] };
+  if (!searchResults.value.users || !searchResults.value.groups) {
+    return result;
+  }
+  if (!searchQuery.value) {
+    if (activeTab.value === 'users') {
+      return { users: searchResults.value.users || [], groups: [] };
+    } else if (activeTab.value === 'groups') {
+      return { users: [], groups: searchResults.value.groups || [] };
+    } else {
+      return searchResults.value;
     }
   }
+  const query = searchQuery.value.toLowerCase();
+  const filteredUsers = activeTab.value === 'groups' ? [] :
+    (searchResults.value.users || []).filter(user =>
+      user.name.toLowerCase().includes(query) ||
+      user.email.toLowerCase().includes(query)
+    );
+  const filteredGroups = activeTab.value === 'users' ? [] :
+    (searchResults.value.groups || []).filter(group =>
+      group.name.toLowerCase().includes(query)
+    );
+  return {
+    users: filteredUsers,
+    groups: filteredGroups
+  };
+});
+
+function getCurrentUser() {
+  isLoading.value = true;
+  return axios.get('/user')
+    .then(response => {
+      currentUser.value = response.data;
+    })
+    .catch(error => {
+      throw error;
+    });
 }
+
+function getSearchResults() {
+  axios.get('/search')
+    .then(response => {
+      searchResults.value = response.data;
+      isLoading.value = false;
+    })
+    .catch(error => {
+      isLoading.value = false;
+    });
+}
+
+function selectUser(user) {
+  selectedItem.value = { ...user, type: 'user' };
+  createOrGetGroup(user.id);
+}
+
+function selectGroup(group) {
+  selectedItem.value = { ...group, type: 'group' };
+  currentGroup.value = group;
+  getConversations(group.id);
+  listenForNewMessage(group.id);
+}
+
+function createOrGetGroup(userId) {
+  axios.post('/groups/create-or-get', {
+    user_id: userId
+  })
+    .then(response => {
+      currentGroup.value = response.data;
+      getConversations(currentGroup.value.id);
+      listenForNewMessage(currentGroup.value.id);
+    })
+    .catch(error => {
+      // Handle error silently
+    });
+}
+
+function getConversations(groupId) {
+  if (!groupId) return;
+  axios.get(`/conversations/${groupId}`)
+    .then(response => {
+      conversations.value = response.data;
+      scrollToBottom();
+    })
+    .catch(error => {
+      conversations.value = [];
+    });
+}
+
+function sendMessage() {
+  if (!newMessage.value.trim() || !currentGroup.value) return;
+  axios.post('/conversations', {
+    message: newMessage.value,
+    group_id: currentGroup.value.id
+  })
+    .then(response => {
+      conversations.value.push(response.data);
+      newMessage.value = '';
+      scrollToBottom();
+    })
+    .catch(error => {
+      // Handle error silently
+    });
+}
+
+function listenForNewMessage(groupId) {
+  if (!groupId) return;
+  if (window.Echo) {
+    window.Echo.leave('private-groups.' + groupId);
+  }
+  window.Echo.private('groups.' + groupId)
+    .listen('NewMessage', (e) => {
+      conversations.value.push(e.conversation);
+      scrollToBottom();
+    });
+}
+
+function scrollToBottom() {
+  nextTick(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+    }
+  });
+}
+
+function formatTime(timestamp) {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+watch(currentGroup, (newGroup, oldGroup) => {
+  if (oldGroup && window.Echo) {
+    window.Echo.leave('private-groups.' + oldGroup.id);
+  }
+  if (newGroup) {
+    listenForNewMessage(newGroup.id);
+  }
+});
+
+onMounted(async () => {
+  try {
+    await axios.get('/sanctum/csrf-cookie');
+    await getCurrentUser();
+    getSearchResults();
+  } catch (error) {
+    hasError.value = true;
+    errorMessage.value = 'Failed to load user data. Please refresh the page.';
+    isLoading.value = false;
+  }
+});
 </script>
 
 <style scoped>
