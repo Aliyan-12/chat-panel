@@ -29,26 +29,68 @@ Route::middleware('auth')->group(function () {
     Route::get('/chat', function () {
         return Inertia::render('Chat');
     })->name('chat');
+    
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     
-});
-
-Route::middleware('auth')->group(function () {
-    Route::resource('groups', GroupController::class);
-    Route::resource('conversations', ConversationController::class);
-
+    // Chat API routes
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
-    Route::get('/users', [ApiUserController::class, 'index']);
-    Route::get('/search', [ApiUserController::class, 'search']);
     
-    Route::post('/groups/create-or-get', [ApiGroupController::class, 'createOrGet']);
-
-    Route::get('/conversations/{conversation}', [ApiConversationController::class, 'index']);
-    Route::post('/conversations', [ApiConversationController::class, 'store']); 
+    // Users
+    Route::get('/users', function (Request $request) {
+        $currentUserId = $request->user()->id;
+        $users = App\Models\User::where('id', '!=', $currentUserId)->get();
+        return response()->json(['users' => $users]);
+    });
+    
+    // Search for users and groups
+    Route::get('/search', function (Request $request) {
+        $currentUser = $request->user();
+        
+        // Get all users except current user
+        $users = App\Models\User::where('id', '!=', $currentUser->id)
+            ->select('id', 'name', 'email')
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'type' => 'user'
+                ];
+            });
+        
+        // Get all groups the current user belongs to
+        $groups = $currentUser->groups()
+            ->with('users')
+            ->get()
+            ->map(function ($group) {
+                return [
+                    'id' => $group->id,
+                    'name' => $group->name,
+                    'users' => $group->users,
+                    'type' => 'group'
+                ];
+            });
+        
+        return [
+            'users' => $users,
+            'groups' => $groups
+        ];
+    });
+    
+    // Groups
+    Route::get('/groups', [GroupController::class, 'index']);
+    Route::post('/groups/create-or-get', [GroupController::class, 'createOrGet']);
+    Route::resource('groups', GroupController::class)->except(['index', 'create', 'edit']);
+    
+    // Conversations
+    Route::get('/conversations', [ConversationController::class, 'individualOrList']);
+    Route::get('/conversations/{group}', [ConversationController::class, 'groupConversation']);
+    Route::post('/conversations', [ConversationController::class, 'store']);
 });
 
 require __DIR__.'/auth.php';

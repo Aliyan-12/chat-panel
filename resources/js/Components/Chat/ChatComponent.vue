@@ -2,7 +2,7 @@
   <div class="chat-container h-full">
     <div class="flex h-full">
       <!-- User List Sidebar -->
-      <div class="w-1/4 bg-gray-100 border-r border-gray-200 overflow-y-auto">
+      <div class="w-1/4 bg-gray-100 border-r border-gray-200 overflow-y-auto relative">
         <div class="p-4 border-b border-gray-200">
           <div class="relative">
             <input 
@@ -105,11 +105,23 @@
             No results found
           </div>
         </div>
+        
+        <!-- Create Group Button -->
+        <div class="absolute bottom-4 right-4">
+          <button 
+            @click="openCreateGroupModal" 
+            class="bg-blue-500 hover:bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg focus:outline-none"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
       </div>
       
       <!-- Chat Area -->
       <div class="w-3/4 flex flex-col h-full">
-        <div v-if="!currentGroup" class="flex-1 flex items-center justify-center bg-gray-50">
+        <div v-if="!currentConversation" class="flex-1 flex items-center justify-center bg-gray-50">
           <div class="text-center text-gray-500">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -138,11 +150,14 @@
           
           <!-- Messages Area -->
           <div class="flex-1 p-4 overflow-y-auto bg-gray-50" ref="messagesContainer">
-            <div v-for="(message, index) in conversations" :key="index" class="mb-4">
+            <div v-if="conversations.length === 0" class="flex items-center justify-center h-full">
+              <p class="text-gray-500">No messages yet. Start the conversation!</p>
+            </div>
+            <div v-else v-for="(message, index) in conversations" :key="index" class="mb-4">
               <div 
                 :class="[
                   'max-w-xs rounded-lg p-3 mb-2', 
-                  message.user.id === currentUser.id 
+                  message.user_id === currentUser.id 
                     ? 'bg-blue-500 text-white ml-auto' 
                     : 'bg-gray-200 text-gray-800'
                 ]"
@@ -152,10 +167,10 @@
               <div 
                 :class="[
                   'text-xs text-gray-500', 
-                  message.user.id === currentUser.id ? 'text-right' : 'text-left'
+                  message.user_id === currentUser.id ? 'text-right' : 'text-left'
                 ]"
               >
-                {{ message.user.name }} • {{ formatTime(message.created_at) }}
+                {{ message.user ? message.user.name : 'Unknown' }} • {{ formatTime(message.created_at) }}
               </div>
             </div>
           </div>
@@ -183,17 +198,90 @@
         </div>
       </div>
     </div>
+    
+    <!-- Create Group Modal -->
+    <div v-if="showCreateGroupModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg shadow-lg p-6 w-96 max-w-full">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold">Create New Group</h2>
+          <button @click="showCreateGroupModal = false" class="text-gray-500 hover:text-gray-700">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-gray-700 text-sm font-bold mb-2" for="group-name">
+            Group Name
+          </label>
+          <input 
+            type="text" 
+            id="group-name"
+            v-model="groupName"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Enter group name"
+          >
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-gray-700 text-sm font-bold mb-2">
+            Select Users
+          </label>
+          <div class="max-h-60 overflow-y-auto border border-gray-300 rounded-lg p-2">
+            <div 
+              v-for="user in groupUsers" 
+              :key="user.id" 
+              class="flex items-center p-2 hover:bg-gray-100 rounded"
+            >
+              <input 
+                type="checkbox" 
+                :id="'user-' + user.id" 
+                :value="user.id" 
+                v-model="selectedGroupUsers"
+                class="mr-2"
+              >
+              <label :for="'user-' + user.id" class="flex items-center cursor-pointer">
+                <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold mr-2">
+                  {{ user.name.charAt(0).toUpperCase() }}
+                </div>
+                <div>
+                  <div class="font-medium">{{ user.name }}</div>
+                  <div class="text-xs text-gray-500">{{ user.email }}</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex justify-end">
+          <button 
+            @click="showCreateGroupModal = false" 
+            class="px-4 py-2 text-gray-600 mr-2 hover:text-gray-800"
+          >
+            Cancel
+          </button>
+          <button 
+            @click="createGroup" 
+            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            :disabled="!groupName.trim() || selectedGroupUsers.length === 0"
+          >
+            Create Group
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 
 const currentUser = ref(null);
 const searchResults = ref({ users: [], groups: [] });
 const selectedItem = ref(null);
-const currentGroup = ref(null);
+const currentConversation = ref(null);
 const conversations = ref([]);
 const newMessage = ref('');
 const searchQuery = ref('');
@@ -202,10 +290,12 @@ const isLoading = ref(true);
 const hasError = ref(false);
 const errorMessage = ref('');
 const messagesContainer = ref(null);
-const currentConversation = ref(null);
+
+// Group creation
 const showCreateGroupModal = ref(false);
 const groupUsers = ref([]);
 const selectedGroupUsers = ref([]);
+const groupName = ref('');
 
 const filteredItems = computed(() => {
   const result = { users: [], groups: [] };
@@ -264,8 +354,12 @@ async function getOrCreateIndividualConversation(userId) {
   try {
     const res = await axios.get('/conversations', { params: { user_id: userId } });
     currentConversation.value = res.data.conversation;
-    conversations.value = res.data.messages;
+    conversations.value = res.data.messages || [];
     isLoading.value = false;
+    scrollToBottom();
+    
+    // Listen for new messages in this conversation
+    listenForNewMessages(currentConversation.value.id);
   } catch (e) {
     isLoading.value = false;
   }
@@ -276,8 +370,12 @@ async function getGroupConversation(groupId) {
   try {
     const res = await axios.get(`/conversations/${groupId}`);
     currentConversation.value = res.data.conversation;
-    conversations.value = res.data.messages;
+    conversations.value = res.data.messages || [];
     isLoading.value = false;
+    scrollToBottom();
+    
+    // Listen for new messages in this conversation
+    listenForNewMessages(currentConversation.value.id);
   } catch (e) {
     isLoading.value = false;
   }
@@ -293,6 +391,66 @@ function selectGroup(group) {
   getGroupConversation(group.id);
 }
 
+function listenForNewMessages(conversationId) {
+  // First, leave any existing channels
+  if (window.Echo) {
+    try {
+      // Clean up any existing listeners to avoid duplicates
+      window.Echo.leave(`conversation.${conversationId}`);
+    } catch (error) {
+      console.error('Error leaving channel:', error);
+    }
+  } else {
+    console.error('Echo is not initialized');
+    return;
+  }
+  
+  // Then, listen to the new channel
+  console.log(`Listening to private-conversation.${conversationId} channel`);
+  
+  try {
+    window.Echo.private(`conversation.${conversationId}`)
+      .listen('.NewMessage', (event) => {
+        console.log('New message received (with dot):', event);
+        handleNewMessage(event);
+      })
+      .listen('NewMessage', (event) => {
+        console.log('New message received (without dot):', event);
+        handleNewMessage(event);
+      })
+      .error((error) => {
+        console.error('Echo connection error:', error);
+      });
+  } catch (error) {
+    console.error('Error setting up Echo listener:', error);
+  }
+}
+
+function handleNewMessage(event) {
+  // Add the new message to the conversation
+  if (event.message && currentConversation.value && 
+      event.message.conversation_id === currentConversation.value.id) {
+    // Check if the message is already in the conversation
+    const messageExists = conversations.value.some(m => m.id === event.message.id);
+    if (!messageExists) {
+      conversations.value.push(event.message);
+      scrollToBottom();
+    }
+  }
+}
+
+// Clean up function to leave channels when component is unmounted
+function leaveChannels() {
+  if (currentConversation.value && window.Echo) {
+    try {
+      console.log(`Leaving channel: conversation.${currentConversation.value.id}`);
+      window.Echo.leave(`conversation.${currentConversation.value.id}`);
+    } catch (error) {
+      console.error('Error leaving channel:', error);
+    }
+  }
+}
+
 async function sendMessage() {
   if (!newMessage.value.trim() || !currentConversation.value) return;
   try {
@@ -303,27 +461,53 @@ async function sendMessage() {
     conversations.value.push(res.data);
     newMessage.value = '';
     scrollToBottom();
-  } catch (e) {}
+  } catch (e) {
+    console.error('Error sending message:', e);
+  }
 }
 
 function openCreateGroupModal() {
   showCreateGroupModal.value = true;
+  groupName.value = '';
+  selectedGroupUsers.value = [];
   // Load all users for selection
-  axios.get('/users').then(res => {
-    groupUsers.value = res.data.users || res.data;
-  });
+  axios.get('/users')
+    .then(res => {
+      groupUsers.value = res.data.users || res.data;
+    })
+    .catch(error => {
+      console.error('Error loading users for group creation:', error);
+    });
 }
 
 async function createGroup() {
-  if (selectedGroupUsers.value.length < 1) return;
+  if (!groupName.value.trim() || selectedGroupUsers.value.length === 0) return;
+  
+  isLoading.value = true;
   try {
     const res = await axios.post('/groups/create-or-get', {
+      name: groupName.value,
       user_ids: selectedGroupUsers.value
     });
+    
+    // Close modal and reset values
     showCreateGroupModal.value = false;
     selectedGroupUsers.value = [];
-    getGroupConversation(res.data.group.id);
-  } catch (e) {}
+    groupName.value = '';
+    
+    // Refresh the groups list
+    getSearchResults();
+    
+    // Select the newly created group
+    if (res.data && res.data.group) {
+      selectGroup(res.data.group);
+    }
+    
+    isLoading.value = false;
+  } catch (e) {
+    console.error('Error creating group:', e);
+    isLoading.value = false;
+  }
 }
 
 function scrollToBottom() {
@@ -340,25 +524,26 @@ function formatTime(timestamp) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-watch(currentGroup, (newGroup, oldGroup) => {
-  if (oldGroup && window.Echo) {
-    window.Echo.leave('groups.' + oldGroup.id);
-  }
-  if (newGroup) {
-    listenForNewMessage(newGroup.id, 'group');
-  }
-});
+// Set up CSRF protection
+axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
+// Initialize component
 onMounted(async () => {
   try {
     await axios.get('/sanctum/csrf-cookie');
     await getCurrentUser();
     getSearchResults();
   } catch (error) {
+    console.error('Initialization error:', error);
     hasError.value = true;
     errorMessage.value = 'Failed to load user data. Please refresh the page.';
     isLoading.value = false;
   }
+});
+
+// Clean up when component is unmounted
+onUnmounted(() => {
+  leaveChannels();
 });
 </script>
 

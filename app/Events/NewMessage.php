@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\Message;
 use App\Models\Conversation;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
@@ -15,14 +16,14 @@ class NewMessage implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $conversation;
+    public $message;
     
     /**
      * Create a new event instance.
      */
-    public function __construct(Conversation $conversation)
+    public function __construct(Message $message)
     {
-        $this->conversation = $conversation;
+        $this->message = $message;
     }
 
     /**
@@ -32,8 +33,18 @@ class NewMessage implements ShouldBroadcast
      */
     public function broadcastOn(): array
     {
+        $conversation = $this->message->conversation;
+        
+        // If it's a group conversation
+        if ($conversation->group_id) {
+            return [
+                new PrivateChannel('conversation.' . $conversation->id),
+            ];
+        }
+        
+        // If it's a direct message conversation
         return [
-            new PrivateChannel('groups.'. $this->conversation->group_id),
+            new PrivateChannel('conversation.' . $conversation->id),
         ];
     }
     
@@ -45,7 +56,7 @@ class NewMessage implements ShouldBroadcast
     public function broadcastWith(): array
     {
         return [
-            'conversation' => $this->conversation->load('user'),
+            'message' => $this->message->load('user'),
         ];
     }
 }
