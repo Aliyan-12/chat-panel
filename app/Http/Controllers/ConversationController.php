@@ -174,7 +174,7 @@ class ConversationController extends Controller
         $message = Message::create([
             'conversation_id' => $request->conversation_id,
             'user_id' => $currentUserId,
-            'message' => $originalName,
+            'message' => $originalName ?? $messageText,
             'type' => $type,
             'file_path' => $filePath,
         ]);

@@ -115,12 +115,36 @@ class ConversationController extends Controller
         $message = Message::create([
             'conversation_id' => $conversation->id,
             'user_id' => $authId,
-            'message' => $originalName,
+            'message' => $originalName ?? $messageText,
             'type' => $type,
             'file_path' => $filePath,
         ]);
         $message->load('user');
         broadcast(new NewMessage($message))->toOthers();
+
+        // Send notification to recipient(s)
+        if ($conversation->group_id) {
+            // Group chat: notify all group members except sender
+            $groupUsers = $conversation->group->users()->where('users.id', '!=', $authId)->get();
+            // dd($groupUsers);
+            foreach ($groupUsers as $user) {
+                $user->notify(new \App\Notifications\NewMessageNotification($message));
+            }
+        } else {
+            // One-to-one chat: notify the other user
+            $recipientId = $conversation->sender_id == $authId ? $conversation->reciever_id : $conversation->sender_id;
+            $recipient = \App\Models\User::find($recipientId);
+            if ($recipient) {
+                $recipient->notify(new \App\Notifications\NewMessageNotification($message));
+            }
+        }
+
         return $message;
+    }
+
+    public function notifications()
+    {
+        $notifications = auth()->user()->notifications;
+        return response()->json($notifications);
     }
 } 

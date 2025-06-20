@@ -1,6 +1,17 @@
 <template>
   <div class="chat-container h-full">
     <div class="flex h-full">
+      <!-- Toaster Notification -->
+      <div
+        v-if="toaster.show"
+        class="fixed z-50 right-6 bottom-6 bg-blue-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 animate-fade-in-up"
+        style="min-width: 250px; max-width: 350px;"
+      >
+        <div>
+          <div class="font-bold">{{ toaster.sender }}</div>
+          <div class="text-sm">{{ toaster.message }}</div>
+        </div>
+      </div>
       <!-- User List Sidebar -->
       <div class="w-1/4 bg-gray-100 border-r border-gray-200 overflow-y-auto relative">
         <div class="p-4 border-b border-gray-200">
@@ -171,7 +182,7 @@
                   </a>
                 </template>
                 <template v-else>
-                  {{ message.message }}
+                {{ message.message }}
                 </template>
               </div>
               <div 
@@ -324,6 +335,14 @@ const groupName = ref('');
 
 const fileToSend = ref(null);
 const fileInput = ref(null);
+
+const notifications = ref([]);
+const toaster = ref({
+  show: false,
+  message: '',
+  sender: '',
+  timeout: null,
+});
 
 const filteredItems = computed(() => {
   const result = { users: [], groups: [] };
@@ -603,12 +622,39 @@ function formatTime(timestamp) {
 // Set up CSRF protection
 axios.defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
+// Listen for real-time notifications
+function listenForNotifications(userId) {
+  if (!window.Echo || !userId) return;
+  window.Echo.private(`App.Models.User.${userId}`)
+    .notification((notification) => {
+      notifications.value.unshift(notification);
+      showToaster(notification);
+    });
+}
+
+function showToaster(notification) {
+  toaster.value.show = true;
+  toaster.value.message = notification.data.message;
+  toaster.value.sender = notification.data.sender_name;
+  if (toaster.value.timeout) clearTimeout(toaster.value.timeout);
+  toaster.value.timeout = setTimeout(() => {
+    toaster.value.show = false;
+  }, 4000);
+}
+
 // Initialize component
 onMounted(async () => {
   try {
     await axios.get('/sanctum/csrf-cookie');
     await getCurrentUser();
     getSearchResults();
+    // Fetch existing notifications
+    const notifRes = await axios.post('/notifications');
+    notifications.value = notifRes.data.data || [];
+    // Listen for real-time notifications
+    if (currentUser.value && currentUser.value.id) {
+      listenForNotifications(currentUser.value.id);
+    }
   } catch (error) {
     console.error('Initialization error:', error);
     hasError.value = true;
@@ -631,6 +677,14 @@ onUnmounted(() => {
 .user-list {
   max-height: calc(70vh - 150px);
   overflow-y: auto;
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(40px);}
+  to { opacity: 1; transform: translateY(0);}
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s;
 }
 
 ::-webkit-scrollbar {
