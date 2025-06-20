@@ -10,6 +10,8 @@ class Message extends Model
         'conversation_id',
         'user_id',
         'message',
+        'type',
+        'file_path',
     ];
 
     public function conversation()

@@ -162,7 +162,17 @@
                     : 'bg-gray-200 text-gray-800'
                 ]"
               >
-                {{ message.message }}
+                <template v-if="message.type === 'file'">
+                  <a :href="fileUrl(message.file_path || message.message)" target="_blank" class="underline break-all">
+                    <template v-if="isImageFile(message.file_path || message.message)">
+                      <img :src="fileUrl(message.file_path || message.message)" :alt="message.message" class="max-h-40 max-w-xs rounded mb-1" />
+                    </template>
+                    <span>{{ getFileName(message.file_path || message.message) }}</span>
+                  </a>
+                </template>
+                <template v-else>
+                  {{ message.message }}
+                </template>
               </div>
               <div 
                 :class="[
@@ -177,23 +187,38 @@
           
           <!-- Message Input -->
           <div class="p-4 border-t border-gray-200 bg-white">
-            <form @submit.prevent="sendMessage" class="flex">
+            <form enctype="multipart/form-data" @submit.prevent="sendMessage" class="flex items-center space-x-2">
               <input 
                 type="text" 
                 v-model="newMessage" 
                 placeholder="Type a message..." 
                 class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                :disabled="fileToSend"
               >
+              <label class="inline-flex items-center cursor-pointer bg-gray-100 px-2 py-2 rounded hover:bg-gray-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.586-6.586a4 4 0 10-5.656-5.656l-6.586 6.586" />
+                </svg>
+                <input type="file" class="hidden" @change="onFileChange" ref="fileInput" />
+              </label>
               <button 
                 type="submit" 
                 class="px-4 py-2 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :disabled="!newMessage.trim()"
+                :disabled="(!newMessage.trim() && !fileToSend)"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                 </svg>
               </button>
             </form>
+            <div v-if="fileToSend" class="mt-2 flex items-center space-x-2 bg-gray-100 p-2 rounded">
+              <span class="truncate max-w-xs">{{ fileToSend.name }}</span>
+              <button @click="removeFile" class="text-red-500 hover:text-red-700" title="Remove file">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -296,6 +321,9 @@ const showCreateGroupModal = ref(false);
 const groupUsers = ref([]);
 const selectedGroupUsers = ref([]);
 const groupName = ref('');
+
+const fileToSend = ref(null);
+const fileInput = ref(null);
 
 const filteredItems = computed(() => {
   const result = { users: [], groups: [] };
@@ -451,18 +479,66 @@ function leaveChannels() {
   }
 }
 
+function onFileChange(e) {
+  const file = e.target.files[0];
+  if (file) {
+    fileToSend.value = file;
+    newMessage.value = '';
+  }
+}
+
+function removeFile() {
+  fileToSend.value = null;
+  if (fileInput.value) fileInput.value.value = '';
+}
+
+function fileUrl(path) {
+  if (!path) return '';
+  // Assuming files are stored in public disk
+  return path.startsWith('/') ? path : `/storage/${path}`;
+}
+
+function isImageFile(path) {
+  if (!path) return false;
+  return /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(path);
+}
+
+function getFileName(path) {
+  if (!path) return 'File';
+  // Extract just the filename from the path (after the last slash)
+  const filename = path.split('/').pop();
+  // Remove the timestamp prefix if present (format: YYYYMMDDHHmmss_filename.ext)
+  return filename.replace(/^\d{14}_/, '');
+}
+
 async function sendMessage() {
-  if (!newMessage.value.trim() || !currentConversation.value) return;
+  if ((!newMessage.value.trim() && !fileToSend.value) || !currentConversation.value) return;
   try {
-    const res = await axios.post('/conversations', {
-      message: newMessage.value,
-      conversation_id: currentConversation.value.id
+    const formData = new FormData();
+    formData.append('conversation_id', currentConversation.value.id);
+    if (fileToSend.value) {
+      formData.append('file', fileToSend.value);
+    }
+    if (newMessage.value.trim()) {
+      formData.append('message', newMessage.value);
+    }
+    
+    console.log('Sending message:', fileToSend.value ? 'with file' : 'text only');
+    
+    const res = await axios.post('/conversations', formData, {
+      headers: { 
+        'Content-Type': 'multipart/form-data',
+        'Accept': 'application/json'
+      }
     });
+    
+    fileToSend.value = null;
+    if (fileInput.value) fileInput.value.value = '';
     conversations.value.push(res.data);
     newMessage.value = '';
     scrollToBottom();
   } catch (e) {
-    console.error('Error sending message:', e);
+    console.error('Error sending message:', e.response ? e.response.data : e);
   }
 }
 

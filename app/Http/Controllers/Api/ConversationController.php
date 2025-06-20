@@ -71,10 +71,20 @@ class ConversationController extends Controller
      */
     public function store(Request $request)
     {
+        \Log::info('Request data:', $request->all());
+        \Log::info('Has file:', ['hasFile' => $request->hasFile('file')]);
+        
         $request->validate([
-            'message' => 'required|string',
             'conversation_id' => 'required|exists:conversations,id',
+            'message' => 'nullable|string',
+            'file' => 'nullable|file|max:10240', // max 10MB
         ]);
+        
+        // Ensure at least one of message or file is present
+        if (!$request->has('message') && !$request->hasFile('file')) {
+            return response()->json(['message' => 'Either message or file is required'], 422);
+        }
+        
         $conversation = Conversation::findOrFail($request->conversation_id);
         $authId = auth()->id();
         // Check if user is allowed
@@ -87,10 +97,27 @@ class ConversationController extends Controller
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
         }
+
+        $type = 'text';
+        $filePath = null;
+        $messageText = $request->message;
+
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $originalName = $file->getClientOriginalName();
+            $extension = $file->getClientOriginalExtension();
+            $fileNameWithTimestamp = date('YmdHis') . '_' . pathinfo($originalName, PATHINFO_FILENAME) . '.' . $extension;
+            $filePath = $file->storeAs('chat_files', $fileNameWithTimestamp, 'public');
+            $type = 'file';
+            $messageText = $fileNameWithTimestamp; // Only the filename
+        }
+
         $message = Message::create([
             'conversation_id' => $conversation->id,
             'user_id' => $authId,
-            'message' => $request->message,
+            'message' => $originalName,
+            'type' => $type,
+            'file_path' => $filePath,
         ]);
         $message->load('user');
         broadcast(new NewMessage($message))->toOthers();

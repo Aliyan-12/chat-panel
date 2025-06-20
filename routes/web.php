@@ -88,9 +88,9 @@ Route::middleware('auth')->group(function () {
     Route::resource('groups', GroupController::class)->except(['index', 'create', 'edit']);
     
     // Conversations
-    Route::get('/conversations', [ConversationController::class, 'individualOrList']);
-    Route::get('/conversations/{group}', [ConversationController::class, 'groupConversation']);
-    Route::post('/conversations', [ConversationController::class, 'store']);
+    Route::get('/conversations', [ApiConversationController::class, 'individualOrList']);
+    Route::get('/conversations/{group}', [ApiConversationController::class, 'groupConversation']);
+    Route::post('/conversations', [ApiConversationController::class, 'store']);
 });
 
 require __DIR__.'/auth.php';

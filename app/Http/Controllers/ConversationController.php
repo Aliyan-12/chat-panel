@@ -125,10 +125,19 @@ class ConversationController extends Controller
      */
     public function store(Request $request)
     {
+        \Log::info('Web Controller - Request data:', $request->all());
+        \Log::info('Web Controller - Has file:', ['hasFile' => $request->hasFile('file')]);
+        
         $request->validate([
-            'message' => 'required|string',
             'conversation_id' => 'required|exists:conversations,id',
+            'message' => 'nullable|string',
+            'file' => 'nullable|file|max:10240', // max 10MB
         ]);
+        
+        // Ensure at least one of message or file is present
+        if (!$request->has('message') && !$request->hasFile('file')) {
+            return response()->json(['message' => 'Either message or file is required'], 422);
+        }
         
         $conversation = Conversation::findOrFail($request->conversation_id);
         $currentUserId = Auth::id();
@@ -147,11 +156,27 @@ class ConversationController extends Controller
             }
         }
         
+        $type = 'text';
+        $filePath = null;
+        $messageText = $request->message;
+
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $originalName = $file->getClientOriginalName();
+            $extension = $file->getClientOriginalExtension();
+            $fileNameWithTimestamp = date('YmdHis') . '_' . pathinfo($originalName, PATHINFO_FILENAME) . '.' . $extension;
+            $filePath = $file->storeAs('chat_files', $fileNameWithTimestamp, 'public');
+            $type = 'file';
+            $messageText = $fileNameWithTimestamp; // Only the filename
+        }
+        
         // Create the message
         $message = Message::create([
             'conversation_id' => $request->conversation_id,
             'user_id' => $currentUserId,
-            'message' => $request->message,
+            'message' => $originalName,
+            'type' => $type,
+            'file_path' => $filePath,
         ]);
         
         // Load the user relationship
