@@ -8,6 +8,7 @@ use App\Models\Conversation;
 use App\Models\Group;
 use App\Models\Message;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class ConversationController extends Controller
 {
@@ -32,15 +33,45 @@ class ConversationController extends Controller
                 ]);
             }
             $messages = $conversation->messages()->with('user')->orderBy('created_at')->get();
+            // Unread count for this conversation
+            $unread_count = $conversation->messages()
+                ->where('user_id', '!=', $authId)
+                ->whereNull('read_at')
+                ->count();
             return response()->json([
                 'conversation' => $conversation,
-                'messages' => $messages
+                'messages' => $messages,
+                'unread_count' => $unread_count
             ]);
         }
-        // Optionally: return all conversations for the user
-        $conversations = Conversation::where('sender_id', $authId)
-            ->orWhere('reciever_id', $authId)
-            ->get();
+        // Return all conversations for the user with unread counts
+        $conversations = Conversation::where(function($q) use ($authId) {
+                $q->where('sender_id', $authId)->orWhere('reciever_id', $authId);
+            })
+            ->orWhereHas('group.users', function($q) use ($authId) {
+                $q->where('users.id', $authId);
+            })
+            ->with(['sender', 'reciever', 'group.users'])
+            ->get()
+            ->map(function($conversation) use ($authId) {
+                $isGroup = $conversation->group_id !== null;
+                $lastMessage = $conversation->messages()->latest()->first();
+                $unreadCount = $conversation->messages()
+                    ->where('user_id', '!=', $authId)
+                    ->whereNull('read_at')
+                    ->count();
+                return [
+                    'id' => $conversation->id,
+                    'type' => $isGroup ? 'group' : 'individual',
+                    'user' => $isGroup ? null : ($conversation->sender_id == $authId ? $conversation->reciever : $conversation->sender),
+                    'group' => $isGroup ? $conversation->group : null,
+                    'last_message' => $lastMessage,
+                    'unread_count' => $unreadCount,
+                    'updated_at' => $lastMessage ? $lastMessage->created_at : $conversation->updated_at
+                ];
+            })
+            ->sortByDesc('updated_at')
+            ->values();
         return response()->json(['conversations' => $conversations]);
     }
 
@@ -60,9 +91,15 @@ class ConversationController extends Controller
             ]);
         }
         $messages = $conversation->messages()->with('user')->orderBy('created_at')->get();
+        // Unread count for this group conversation
+        $unread_count = $conversation->messages()
+            ->where('user_id', '!=', $authId)
+            ->whereNull('read_at')
+            ->count();
         return response()->json([
             'conversation' => $conversation,
-            'messages' => $messages
+            'messages' => $messages,
+            'unread_count' => $unread_count
         ]);
     }
 
@@ -146,5 +183,20 @@ class ConversationController extends Controller
     {
         $notifications = auth()->user()->notifications;
         return response()->json($notifications);
+    }
+
+    public function markAsRead(Request $request)
+    {
+        $request->validate([
+            'conversation_id' => 'required|exists:conversations,id',
+        ]);
+        $authId = auth()->id();
+        $conversation = Conversation::findOrFail($request->conversation_id);
+        // Mark all unread messages from other users as read
+        $conversation->messages()
+            ->where('user_id', '!=', $authId)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+        return response()->json(['success' => true]);
     }
 } 

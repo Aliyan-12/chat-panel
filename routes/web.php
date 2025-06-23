@@ -92,6 +92,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/conversations/{group}', [ApiConversationController::class, 'groupConversation']);
     Route::post('/conversations', [ApiConversationController::class, 'store']);
     Route::post('/notifications', [ApiConversationController::class, 'notifications']);
+    // Route::post('/conversations/read', [ApiConversationController::class, 'markAsRead']);
 });
 
 require __DIR__.'/auth.php';

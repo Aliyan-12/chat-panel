@@ -12,6 +12,11 @@ class Message extends Model
         'message',
         'type',
         'file_path',
+        'read_at',
+    ];
+
+    protected $casts = [
+        'read_at' => 'datetime',
     ];
 
     public function conversation()
@@ -22,5 +27,18 @@ class Message extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function markAsRead()
+    {
+        if (is_null($this->read_at)) {
+            $this->update(['read_at' => now()]);
+        }
+        return $this;
+    }
+
+    public function isUnread()
+    {
+        return is_null($this->read_at);
     }
 } 

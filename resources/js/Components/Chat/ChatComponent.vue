@@ -4,13 +4,24 @@
       <!-- Toaster Notification -->
       <div
         v-if="toaster.show"
-        class="fixed z-50 right-6 bottom-6 bg-blue-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 animate-fade-in-up"
+        @click="onToasterClick"
+        class="fixed z-50 right-6 bottom-6 bg-blue-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 animate-fade-in-up cursor-pointer"
         style="min-width: 250px; max-width: 350px;"
       >
-        <div>
-          <div class="font-bold">{{ toaster.sender }}</div>
-          <div class="text-sm">{{ toaster.message }}</div>
+        <div class="flex-1">
+          <div class="font-bold">
+            <span v-if="toaster.group">{{ toaster.group }} - </span>{{ toaster.sender }}
+          </div>
+          <div class="text-sm">
+            {{ toaster.shortMessage }}
+          </div>
+          <div class="text-xs text-gray-200 mt-1">{{ toaster.time }}</div>
         </div>
+        <button @click="dismissToaster" class="ml-2 text-white hover:text-gray-200 focus:outline-none">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
       <!-- User List Sidebar -->
       <div class="w-1/4 bg-gray-100 border-r border-gray-200 overflow-y-auto relative">
@@ -77,43 +88,27 @@
         </div>
         
         <div v-else class="user-list">
-          <!-- Users list -->
-          <div 
-            v-for="user in filteredItems.users" 
-            :key="'user-' + user.id" 
-            @click="selectUser(user)"
-            class="p-4 border-b border-gray-200 hover:bg-gray-200 cursor-pointer flex items-center"
-            :class="{'bg-blue-50': selectedItem && selectedItem.id === user.id && selectedItem.type === 'user'}"
+          <!-- Render chatList for sidebar -->
+          <div v-for="chat in chatList" :key="chat.id" @click="chat.type === 'group' ? selectGroup(chat.group) : selectUser(chat.user)"
+            class="p-4 border-b border-gray-200 hover:bg-gray-200 cursor-pointer flex items-center relative"
+            :class="{'bg-blue-50': selectedItem && ((chat.type === 'user' && selectedItem.id === chat.user?.id) || (chat.type === 'group' && selectedItem.id === chat.group?.id))}"
           >
-            <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold mr-3">
-              {{ user.name.charAt(0).toUpperCase() }}
+            <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold mr-3"
+              :class="chat.type === 'group' ? 'bg-green-500' : 'bg-blue-500'">
+              {{ chat.type === 'group' ? chat.group.name.charAt(0).toUpperCase() : chat.user.name.charAt(0).toUpperCase() }}
             </div>
-            <div>
-              <div class="font-medium">{{ user.name }}</div>
-              <div class="text-sm text-gray-500">{{ user.email }}</div>
+            <div class="flex-1">
+              <div class="font-medium">{{ chat.type === 'group' ? chat.group.name : chat.user.name }}</div>
+              <div class="text-sm text-gray-500">
+                <span v-if="chat.type === 'group'">{{ chat.group.users.length }} members</span>
+                <span v-else>{{ chat.user.email }}</span>
+              </div>
             </div>
+            <span v-if="chat.unread_count > 0" class="absolute right-4 top-4 bg-red-500 text-white text-xs rounded-full px-2 py-0.5">{{ chat.unread_count }}</span>
           </div>
-          
-          <!-- Groups list -->
-          <div 
-            v-for="group in filteredItems.groups" 
-            :key="'group-' + group.id" 
-            @click="selectGroup(group)"
-            class="p-4 border-b border-gray-200 hover:bg-gray-200 cursor-pointer flex items-center"
-            :class="{'bg-blue-50': selectedItem && selectedItem.id === group.id && selectedItem.type === 'group'}"
-          >
-            <div class="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold mr-3">
-              {{ group.name.charAt(0).toUpperCase() }}
-            </div>
-            <div>
-              <div class="font-medium">{{ group.name }}</div>
-              <div class="text-sm text-gray-500">{{ group.users.length }} members</div>
-            </div>
-          </div>
-          
           <!-- No results message -->
-          <div v-if="(filteredItems.users.length === 0 && filteredItems.groups.length === 0)" class="p-4 text-center text-gray-500">
-            No results found
+          <div v-if="chatList.length === 0" class="p-4 text-center text-gray-500">
+            No chats found
           </div>
         </div>
         
@@ -164,7 +159,7 @@
             <div v-if="conversations.length === 0" class="flex items-center justify-center h-full">
               <p class="text-gray-500">No messages yet. Start the conversation!</p>
             </div>
-            <div v-else v-for="(message, index) in conversations" :key="index" class="mb-4">
+            <div v-else v-for="(message, index) in conversations" :key="index" :id="`message-${message.id}`" class="mb-4">
               <div 
                 :class="[
                   'max-w-xs rounded-lg p-3 mb-2', 
@@ -340,9 +335,18 @@ const notifications = ref([]);
 const toaster = ref({
   show: false,
   message: '',
+  shortMessage: '',
   sender: '',
+  group: '',
+  time: '',
+  conversation_id: null,
+  group_id: null,
+  user_id: null,
+  message_id: null,
   timeout: null,
 });
+
+const chatList = ref([]); // All conversations with unread counts
 
 const filteredItems = computed(() => {
   const result = { users: [], groups: [] };
@@ -396,6 +400,17 @@ function getSearchResults() {
     });
 }
 
+async function getChatList() {
+  isLoading.value = true;
+  try {
+    const res = await axios.get('/conversations');
+    chatList.value = res.data.conversations || [];
+    isLoading.value = false;
+  } catch (e) {
+    isLoading.value = false;
+  }
+}
+
 async function getOrCreateIndividualConversation(userId) {
   isLoading.value = true;
   try {
@@ -428,14 +443,18 @@ async function getGroupConversation(groupId) {
   }
 }
 
-function selectUser(user) {
+async function selectUser(user) {
   selectedItem.value = { ...user, type: 'user' };
-  getOrCreateIndividualConversation(user.id);
+  await getOrCreateIndividualConversation(user.id);
+  await markChatAsRead(currentConversation.value.id);
+  updateChatListOnOpen(currentConversation.value.id);
 }
 
-function selectGroup(group) {
+async function selectGroup(group) {
   selectedItem.value = { ...group, type: 'group' };
-  getGroupConversation(group.id);
+  await getGroupConversation(group.id);
+  await markChatAsRead(currentConversation.value.id);
+  updateChatListOnOpen(currentConversation.value.id);
 }
 
 function listenForNewMessages(conversationId) {
@@ -474,10 +493,25 @@ function listenForNewMessages(conversationId) {
 }
 
 function handleNewMessage(event) {
-  // Add the new message to the conversation
+  if (event.message && event.message.conversation_id) {
+    // Find chat in chatList
+    const idx = chatList.value.findIndex(c => c.id === event.message.conversation_id);
+    if (idx !== -1) {
+      // If not currently open, increment unread count
+      if (!currentConversation.value || currentConversation.value.id !== event.message.conversation_id) {
+        chatList.value[idx].unread_count = (chatList.value[idx].unread_count || 0) + 1;
+      }
+      // Move chat to top
+      const chat = chatList.value.splice(idx, 1)[0];
+      chatList.value.unshift(chat);
+    } else {
+      // If not found, refetch chatList
+      getChatList();
+    }
+  }
+  // Add the new message to the conversation if open
   if (event.message && currentConversation.value && 
       event.message.conversation_id === currentConversation.value.id) {
-    // Check if the message is already in the conversation
     const messageExists = conversations.value.some(m => m.id === event.message.id);
     if (!messageExists) {
       conversations.value.push(event.message);
@@ -634,12 +668,77 @@ function listenForNotifications(userId) {
 
 function showToaster(notification) {
   toaster.value.show = true;
-  toaster.value.message = notification.data.message;
-  toaster.value.sender = notification.data.sender_name;
+  toaster.value.message = notification.message;
+  toaster.value.shortMessage = getShortMessage(notification.message);
+  toaster.value.sender = notification.sender_name;
+  toaster.value.group = notification.group_name || '';
+  toaster.value.time = formatTime(notification.created_at);
+  toaster.value.conversation_id = notification.conversation_id || null;
+  toaster.value.group_id = notification.group_id || null;
+  toaster.value.user_id = notification.sender_id || null;
+  toaster.value.message_id = notification.message_id || null;
   if (toaster.value.timeout) clearTimeout(toaster.value.timeout);
   toaster.value.timeout = setTimeout(() => {
     toaster.value.show = false;
-  }, 4000);
+  }, 10000); // 10 seconds
+}
+
+function dismissToaster() {
+  toaster.value.show = false;
+  if (toaster.value.timeout) clearTimeout(toaster.value.timeout);
+}
+
+function getShortMessage(msg) {
+  if (!msg) return '';
+  return msg.split(' ').slice(0, 2).join(' ') + (msg.split(' ').length > 2 ? '...' : '');
+}
+
+async function onToasterClick() {
+  toaster.value.show = false;
+  if (toaster.value.group_id) {
+    // It's a group message
+    const group = (searchResults.value.groups || []).find(g => g.id === toaster.value.group_id);
+    if (group) {
+      await selectGroup(group);
+    }
+  } else if (toaster.value.user_id) {
+    // It's a direct message
+    const user = (searchResults.value.users || []).find(u => u.id === toaster.value.user_id);
+    if (user) {
+      await selectUser(user);
+    }
+  }
+  // Wait for messages to load, then scroll to the message
+  nextTick(() => {
+    scrollToMessage(toaster.value.message_id);
+  });
+}
+
+function scrollToMessage(messageId) {
+  nextTick(() => {
+    const messageEl = document.getElementById(`message-${messageId}`);
+    if (messageEl) {
+      messageEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      messageEl.classList.add('highlight');
+      setTimeout(() => messageEl.classList.remove('highlight'), 2000);
+    }
+  });
+}
+
+async function markChatAsRead(conversationId) {
+  try {
+    await axios.post('/conversations/read', { conversation_id: conversationId });
+  } catch (e) {}
+}
+
+function updateChatListOnOpen(conversationId) {
+  // Reset unread count and move chat to top
+  const idx = chatList.value.findIndex(c => c.id === conversationId);
+  if (idx !== -1) {
+    chatList.value[idx].unread_count = 0;
+    const chat = chatList.value.splice(idx, 1)[0];
+    chatList.value.unshift(chat);
+  }
 }
 
 // Initialize component
@@ -647,6 +746,7 @@ onMounted(async () => {
   try {
     await axios.get('/sanctum/csrf-cookie');
     await getCurrentUser();
+    await getChatList();
     getSearchResults();
     // Fetch existing notifications
     const notifRes = await axios.post('/notifications');
@@ -702,5 +802,10 @@ onUnmounted(() => {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+.highlight {
+  background-color: #ffe066 !important;
+  transition: background-color 0.5s;
 }
 </style> 
