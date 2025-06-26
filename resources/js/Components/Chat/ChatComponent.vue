@@ -1,7 +1,165 @@
 <template>
-  <div class="chat-container h-full">
-    <div class="flex h-full">
-      <!-- Toaster Notification -->
+  <div class="chat-container h-full bg-[#181F2A] flex">
+    <!-- Sidebar -->
+    <aside class="w-80 bg-[#232B3E] border-r border-[#232B3E] flex flex-col h-full shadow-lg">
+      <div class="p-4 border-b border-[#232B3E] flex items-center justify-between">
+        <span class="text-xl font-bold text-orange-400 tracking-tight">Workzen Chat</span>
+        <button @click="openCreateGroupModal" class="bg-orange-500 hover:bg-orange-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow focus:outline-none transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
+      <div class="p-3">
+            <input 
+              type="text" 
+              v-model="searchQuery" 
+          placeholder="Search chats..."
+          class="w-full px-4 py-2 border border-[#232B3E] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-[#232B3E] text-sm text-white placeholder-gray-400"
+            >
+            </div>
+      <!-- Filter Tabs -->
+      <div class="flex border-b border-[#232B3E] mb-1">
+        <button @click="activeTab = 'all'" class="flex-1 py-2 text-center font-medium transition"
+          :class="activeTab === 'all' ? 'text-orange-400 border-b-2 border-orange-400 bg-[#232B3E]' : 'text-gray-400'">
+            All
+          </button>
+        <button @click="activeTab = 'users'" class="flex-1 py-2 text-center font-medium transition"
+          :class="activeTab === 'users' ? 'text-orange-400 border-b-2 border-orange-400 bg-[#232B3E]' : 'text-gray-400'">
+            Users
+          </button>
+        <button @click="activeTab = 'groups'" class="flex-1 py-2 text-center font-medium transition"
+          :class="activeTab === 'groups' ? 'text-orange-400 border-b-2 border-orange-400 bg-[#232B3E]' : 'text-gray-400'">
+            Groups
+          </button>
+        </div>
+      <nav class="flex-1 overflow-y-auto">
+        <div v-for="chat in filteredChatList" :key="chat.id"
+          @click="chat.type === 'group' ? selectGroup(chat.group) : selectUser(chat.user)"
+          class="flex items-center p-3 rounded-lg hover:bg-[#222B45] transition group cursor-pointer relative mb-1"
+          :class="{'bg-[#222B45] border-l-4 border-orange-400': selectedItem && ((chat.type === 'user' && selectedItem.id === chat.user?.id) || (chat.type === 'group' && selectedItem.id === chat.group?.id))}"
+        >
+          <div class="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg mr-3 shadow"
+            :class="chat.type === 'group' ? 'bg-gradient-to-br from-orange-400 to-orange-600' : 'bg-gradient-to-br from-blue-400 to-blue-600'">
+            {{ chat.type === 'group' ? chat.group.name.charAt(0).toUpperCase() : chat.user.name.charAt(0).toUpperCase() }}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex justify-between items-center">
+              <span class="font-semibold truncate text-white">{{ chat.type === 'group' ? chat.group.name : chat.user.name }}</span>
+              <span class="text-xs text-gray-400 ml-2">{{ chat.last_message ? formatTime(chat.last_message.created_at) : '' }}</span>
+            </div>
+            <div class="text-sm text-gray-400 truncate">{{ chat.last_message ? chat.last_message.message : 'No messages yet' }}</div>
+          </div>
+          <span v-if="chat.unread_count > 0" class="ml-2 bg-orange-500 text-white text-xs rounded-full px-2 py-0.5 animate-pulse shadow">{{ chat.unread_count }}</span>
+        </div>
+        <div v-if="filteredChatList.length === 0" class="p-4 text-center text-gray-400">No chats found</div>
+      </nav>
+    </aside>
+
+    <!-- Main Chat Area -->
+    <section class="flex-1 flex flex-col h-full">
+      <header v-if="currentConversation" class="p-4 border-b border-gray-200 bg-white flex items-center shadow-sm">
+        <div class="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg mr-3 shadow"
+          :class="selectedItem.type === 'user' ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gradient-to-br from-green-400 to-green-600'">
+          {{ selectedItem.name.charAt(0).toUpperCase() }}
+        </div>
+        <div class="flex-1">
+          <div class="text-black font-semibold text-lg">{{ selectedItem.name }}</div>
+          <div class="text-xs text-gray-500">
+            <span v-if="selectedItem.type === 'user'">{{ selectedItem.online ? 'Online' : 'Offline' }}</span>
+            <span v-else>{{ selectedItem.users.length }} members</span>
+          </div>
+        </div>
+        <button v-if="selectedItem.type === 'group'" @click="openAddParticipantsModal" class="ml-4 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition text-sm font-medium flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+          Add Participants
+          </button>
+      </header>
+      <div v-else class="flex-1 flex items-center justify-center bg-gray-50">
+        <div class="text-center text-gray-400">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <p class="text-xl">Select a user or group to start chatting</p>
+            </div>
+          </div>
+          
+          <!-- Messages Area -->
+      <main v-if="currentConversation" class="flex-1 p-6 overflow-y-auto bg-gradient-to-b from-gray-50 to-gray-100" ref="messagesContainer">
+            <div v-if="conversations.length === 0" class="flex items-center justify-center h-full">
+          <p class="text-gray-400">No messages yet. Start the conversation!</p>
+        </div>
+        <div v-else v-for="(message, index) in conversations" :key="index" :id="`message-${message.id}`" class="mb-6 flex flex-col"
+          :class="{'items-end': message.user_id === currentUser.id, 'items-start': message.user_id !== currentUser.id}">
+          <div class="flex items-end max-w-lg">
+            <div v-if="message.user_id !== currentUser.id" class="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 font-bold mr-2">
+              {{ message.user ? message.user.name.charAt(0).toUpperCase() : '?' }}
+            </div>
+            <div :class="[
+              'rounded-2xl px-4 py-2 shadow',
+              message.user_id === currentUser.id ? 'bg-blue-500 text-white' : 'bg-white text-gray-800 border border-gray-200'
+            ]">
+                <template v-if="message.type === 'file'">
+                  <a :href="fileUrl(message.file_path || message.message)" target="_blank" class="underline break-all">
+                    <template v-if="isImageFile(message.file_path || message.message)">
+                      <img :src="fileUrl(message.file_path || message.message)" :alt="message.message" class="max-h-40 max-w-xs rounded mb-1" />
+                    </template>
+                    <span>{{ getFileName(message.file_path || message.message) }}</span>
+                  </a>
+                </template>
+                <template v-else>
+                {{ message.message }}
+                </template>
+              </div>
+            <div v-if="message.user_id === currentUser.id" class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold ml-2">
+              {{ currentUser.name.charAt(0).toUpperCase() }}
+            </div>
+          </div>
+          <span class="text-xs text-gray-400 mt-1" :class="{'text-right': message.user_id === currentUser.id, 'text-left': message.user_id !== currentUser.id}">
+            {{ message.user ? message.user.name : 'Unknown' }} • {{ formatTime(message.created_at) }}
+          </span>
+        </div>
+      </main>
+          
+          <!-- Message Input -->
+      <footer v-if="currentConversation" class="p-4 border-t border-gray-200 bg-white flex items-center space-x-2 shadow-inner">
+        <form enctype="multipart/form-data" @submit.prevent="sendMessage" class="flex items-center w-full space-x-2">
+          <label class="inline-flex items-center cursor-pointer bg-gray-100 px-3 py-2 rounded-lg hover:bg-gray-200 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.586-6.586a4 4 0 10-5.656-5.656l-6.586 6.586" />
+                </svg>
+                <input type="file" class="hidden" @change="onFileChange" ref="fileInput" />
+              </label>
+          <input
+            type="text"
+            v-model="newMessage"
+            placeholder="Type a message..."
+            class="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 text-sm"
+            :disabled="fileToSend"
+          >
+              <button 
+                type="submit" 
+            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                :disabled="(!newMessage.trim() && !fileToSend)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              </button>
+            </form>
+        <div v-if="fileToSend" class="ml-2 flex items-center space-x-2 bg-gray-100 p-2 rounded-lg">
+              <span class="truncate max-w-xs">{{ fileToSend.name }}</span>
+              <button @click="removeFile" class="text-red-500 hover:text-red-700" title="Remove file">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+      </footer>
+    </section>
+
+    <!-- Toaster Notification -->
+    <transition name="fade">
       <div
         v-if="toaster.show"
         @click="onToasterClick"
@@ -17,215 +175,46 @@
           </div>
           <div class="text-xs text-gray-200 mt-1">{{ toaster.time }}</div>
         </div>
-        <button @click="dismissToaster" class="ml-2 text-white hover:text-gray-200 focus:outline-none">
+        <button @click.stop="dismissToaster" class="ml-2 text-white hover:text-gray-200 focus:outline-none">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
-      <!-- User List Sidebar -->
-      <div class="w-1/4 bg-gray-100 border-r border-gray-200 overflow-y-auto relative">
-        <div class="p-4 border-b border-gray-200">
-          <div class="relative">
-            <input 
-              type="text" 
-              v-model="searchQuery" 
-              placeholder="Search users and groups..." 
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-            <div v-if="searchQuery" class="absolute right-3 top-2.5 cursor-pointer text-gray-500" @click="searchQuery = ''">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Tab navigation -->
-        <div class="flex border-b border-gray-200">
-          <button 
-            @click="activeTab = 'all'" 
-            class="flex-1 py-3 text-center font-medium"
-            :class="activeTab === 'all' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'"
-          >
-            All
-          </button>
-          <button 
-            @click="activeTab = 'users'" 
-            class="flex-1 py-3 text-center font-medium"
-            :class="activeTab === 'users' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'"
-          >
-            Users
-          </button>
-          <button 
-            @click="activeTab = 'groups'" 
-            class="flex-1 py-3 text-center font-medium"
-            :class="activeTab === 'groups' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'"
-          >
-            Groups
-          </button>
-        </div>
-        
-        <!-- Debug info - remove in production -->
-        <div class="p-2 bg-yellow-100 text-xs">
-          <p>Users: {{ searchResults.users ? searchResults.users.length : 0 }}</p>
-          <p>Groups: {{ searchResults.groups ? searchResults.groups.length : 0 }}</p>
-          <p>Filtered Users: {{ filteredItems.users ? filteredItems.users.length : 0 }}</p>
-          <p>Filtered Groups: {{ filteredItems.groups ? filteredItems.groups.length : 0 }}</p>
-          <p>Search: "{{ searchQuery }}"</p>
-          <p>Tab: {{ activeTab }}</p>
-        </div>
-        
-        <!-- Loading indicator -->
-        <div v-if="isLoading" class="p-4 text-center">
-          <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-          <p class="mt-2 text-gray-500">Loading...</p>
-        </div>
-        
-        <!-- Error message -->
-        <div v-else-if="hasError" class="p-4 text-center text-red-500">
-          {{ errorMessage }}
-        </div>
-        
-        <div v-else class="user-list">
-          <!-- Render chatList for sidebar -->
-          <div v-for="chat in chatList" :key="chat.id" @click="chat.type === 'group' ? selectGroup(chat.group) : selectUser(chat.user)"
-            class="p-4 border-b border-gray-200 hover:bg-gray-200 cursor-pointer flex items-center relative"
-            :class="{'bg-blue-50': selectedItem && ((chat.type === 'user' && selectedItem.id === chat.user?.id) || (chat.type === 'group' && selectedItem.id === chat.group?.id))}"
-          >
-            <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold mr-3"
-              :class="chat.type === 'group' ? 'bg-green-500' : 'bg-blue-500'">
-              {{ chat.type === 'group' ? chat.group.name.charAt(0).toUpperCase() : chat.user.name.charAt(0).toUpperCase() }}
-            </div>
-            <div class="flex-1">
-              <div class="font-medium">{{ chat.type === 'group' ? chat.group.name : chat.user.name }}</div>
-              <div class="text-sm text-gray-500">
-                <span v-if="chat.type === 'group'">{{ chat.group.users.length }} members</span>
-                <span v-else>{{ chat.user.email }}</span>
-              </div>
-            </div>
-            <span v-if="chat.unread_count > 0" class="absolute right-4 top-4 bg-red-500 text-white text-xs rounded-full px-2 py-0.5">{{ chat.unread_count }}</span>
-          </div>
-          <!-- No results message -->
-          <div v-if="chatList.length === 0" class="p-4 text-center text-gray-500">
-            No chats found
-          </div>
-        </div>
-        
-        <!-- Create Group Button -->
-        <div class="absolute bottom-4 right-4">
-          <button 
-            @click="openCreateGroupModal" 
-            class="bg-blue-500 hover:bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg focus:outline-none"
-          >
+    </transition>
+
+    <!-- Add Participants Modal -->
+    <div v-if="showAddParticipantsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg shadow-lg p-6 w-96 max-w-full">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold">Add Participants</h2>
+          <button @click="showAddParticipantsModal = false" class="text-gray-500 hover:text-gray-700">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-      </div>
-      
-      <!-- Chat Area -->
-      <div class="w-3/4 flex flex-col h-full">
-        <div v-if="!currentConversation" class="flex-1 flex items-center justify-center bg-gray-50">
-          <div class="text-center text-gray-500">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-            <p class="text-xl">Select a user or group to start chatting</p>
-          </div>
+        <div class="mb-4">
+          <input type="text" v-model="addParticipantsSearch" placeholder="Search users..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
-        
-        <div v-else class="flex flex-col h-full">
-          <!-- Chat Header -->
-          <div class="p-4 border-b border-gray-200 bg-white flex items-center">
-            <div 
-              class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold mr-3"
-              :class="selectedItem.type === 'user' ? 'bg-blue-500' : 'bg-green-500'"
-            >
-              {{ selectedItem.name.charAt(0).toUpperCase() }}
-            </div>
-            <div>
-              <div class="font-medium">{{ selectedItem.name }}</div>
-              <div class="text-sm text-gray-500">
-                <span v-if="selectedItem.type === 'user'">{{ selectedItem.online ? 'Online' : 'Offline' }}</span>
-                <span v-else>{{ selectedItem.users.length }} members</span>
+        <div class="max-h-60 overflow-y-auto border border-gray-300 rounded-lg p-2 mb-4">
+          <div v-for="user in filteredAddParticipantsUsers" :key="user.id" class="flex items-center p-2 hover:bg-gray-100 rounded">
+            <input type="checkbox" :id="'add-user-' + user.id" :value="user.id" v-model="selectedAddParticipants" class="mr-2" />
+            <label :for="'add-user-' + user.id" class="flex items-center cursor-pointer">
+              <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold mr-2">
+                {{ user.name.charAt(0).toUpperCase() }}
               </div>
-            </div>
-          </div>
-          
-          <!-- Messages Area -->
-          <div class="flex-1 p-4 overflow-y-auto bg-gray-50" ref="messagesContainer">
-            <div v-if="conversations.length === 0" class="flex items-center justify-center h-full">
-              <p class="text-gray-500">No messages yet. Start the conversation!</p>
-            </div>
-            <div v-else v-for="(message, index) in conversations" :key="index" :id="`message-${message.id}`" class="mb-4">
-              <div 
-                :class="[
-                  'max-w-xs rounded-lg p-3 mb-2', 
-                  message.user_id === currentUser.id 
-                    ? 'bg-blue-500 text-white ml-auto' 
-                    : 'bg-gray-200 text-gray-800'
-                ]"
-              >
-                <template v-if="message.type === 'file'">
-                  <a :href="fileUrl(message.file_path || message.message)" target="_blank" class="underline break-all">
-                    <template v-if="isImageFile(message.file_path || message.message)">
-                      <img :src="fileUrl(message.file_path || message.message)" :alt="message.message" class="max-h-40 max-w-xs rounded mb-1" />
-                    </template>
-                    <span>{{ getFileName(message.file_path || message.message) }}</span>
-                  </a>
-                </template>
-                <template v-else>
-                {{ message.message }}
-                </template>
+              <div>
+                <div class="font-medium">{{ user.name }}</div>
+                <div class="text-xs text-gray-500">{{ user.email }}</div>
               </div>
-              <div 
-                :class="[
-                  'text-xs text-gray-500', 
-                  message.user_id === currentUser.id ? 'text-right' : 'text-left'
-                ]"
-              >
-                {{ message.user ? message.user.name : 'Unknown' }} • {{ formatTime(message.created_at) }}
-              </div>
-            </div>
+            </label>
           </div>
-          
-          <!-- Message Input -->
-          <div class="p-4 border-t border-gray-200 bg-white">
-            <form enctype="multipart/form-data" @submit.prevent="sendMessage" class="flex items-center space-x-2">
-              <input 
-                type="text" 
-                v-model="newMessage" 
-                placeholder="Type a message..." 
-                class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :disabled="fileToSend"
-              >
-              <label class="inline-flex items-center cursor-pointer bg-gray-100 px-2 py-2 rounded hover:bg-gray-200">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.586-6.586a4 4 0 10-5.656-5.656l-6.586 6.586" />
-                </svg>
-                <input type="file" class="hidden" @change="onFileChange" ref="fileInput" />
-              </label>
-              <button 
-                type="submit" 
-                class="px-4 py-2 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :disabled="(!newMessage.trim() && !fileToSend)"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-              </button>
-            </form>
-            <div v-if="fileToSend" class="mt-2 flex items-center space-x-2 bg-gray-100 p-2 rounded">
-              <span class="truncate max-w-xs">{{ fileToSend.name }}</span>
-              <button @click="removeFile" class="text-red-500 hover:text-red-700" title="Remove file">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
+          <div v-if="filteredAddParticipantsUsers.length === 0" class="text-gray-400 text-center py-2">No users found</div>
+        </div>
+        <div class="flex justify-end">
+          <button @click="showAddParticipantsModal = false" class="px-4 py-2 text-gray-600 mr-2 hover:text-gray-800">Cancel</button>
+          <button @click="addParticipantsToGroup" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500" :disabled="selectedAddParticipants.length === 0">Add</button>
         </div>
       </div>
     </div>
@@ -241,37 +230,14 @@
             </svg>
           </button>
         </div>
-        
         <div class="mb-4">
-          <label class="block text-gray-700 text-sm font-bold mb-2" for="group-name">
-            Group Name
-          </label>
-          <input 
-            type="text" 
-            id="group-name"
-            v-model="groupName"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter group name"
-          >
+          <input type="text" id="group-name" v-model="groupName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter group name" />
         </div>
-        
         <div class="mb-4">
-          <label class="block text-gray-700 text-sm font-bold mb-2">
-            Select Users
-          </label>
+          <input type="text" v-model="groupUserSearch" placeholder="Search users..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2" />
           <div class="max-h-60 overflow-y-auto border border-gray-300 rounded-lg p-2">
-            <div 
-              v-for="user in groupUsers" 
-              :key="user.id" 
-              class="flex items-center p-2 hover:bg-gray-100 rounded"
-            >
-              <input 
-                type="checkbox" 
-                :id="'user-' + user.id" 
-                :value="user.id" 
-                v-model="selectedGroupUsers"
-                class="mr-2"
-              >
+            <div v-for="user in filteredGroupUsers" :key="user.id" class="flex items-center p-2 hover:bg-gray-100 rounded">
+              <input type="checkbox" :id="'user-' + user.id" :value="user.id" v-model="selectedGroupUsers" class="mr-2" />
               <label :for="'user-' + user.id" class="flex items-center cursor-pointer">
                 <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold mr-2">
                   {{ user.name.charAt(0).toUpperCase() }}
@@ -282,23 +248,12 @@
                 </div>
               </label>
             </div>
+            <div v-if="filteredGroupUsers.length === 0" class="text-gray-400 text-center py-2">No users found</div>
           </div>
         </div>
-        
         <div class="flex justify-end">
-          <button 
-            @click="showCreateGroupModal = false" 
-            class="px-4 py-2 text-gray-600 mr-2 hover:text-gray-800"
-          >
-            Cancel
-          </button>
-          <button 
-            @click="createGroup" 
-            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            :disabled="!groupName.trim() || selectedGroupUsers.length === 0"
-          >
-            Create Group
-          </button>
+          <button @click="showCreateGroupModal = false" class="px-4 py-2 text-gray-600 mr-2 hover:text-gray-800">Cancel</button>
+          <button @click="createGroup" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500" :disabled="!groupName.trim() || selectedGroupUsers.length === 0">Create Group</button>
         </div>
       </div>
     </div>
@@ -348,6 +303,14 @@ const toaster = ref({
 
 const chatList = ref([]); // All conversations with unread counts
 
+const showAddParticipantsModal = ref(false);
+const addParticipantsSearch = ref('');
+const addParticipantsUsers = ref([]); // Users not in group
+const selectedAddParticipants = ref([]);
+
+// For group creation modal search
+const groupUserSearch = ref('');
+
 const filteredItems = computed(() => {
   const result = { users: [], groups: [] };
   if (!searchResults.value.users || !searchResults.value.groups) {
@@ -376,6 +339,25 @@ const filteredItems = computed(() => {
     users: filteredUsers,
     groups: filteredGroups
   };
+});
+
+const filteredChatList = computed(() => {
+  let list = chatList.value;
+  if (activeTab.value === 'users') {
+    list = list.filter(c => c.type === 'individual');
+  } else if (activeTab.value === 'groups') {
+    list = list.filter(c => c.type === 'group');
+  }
+  if (!searchQuery.value) return list;
+  const q = searchQuery.value.toLowerCase();
+  return list.filter(c => {
+    if (c.type === 'group') {
+      return c.group.name.toLowerCase().includes(q);
+    } else if (c.type === 'individual') {
+      return c.user.name.toLowerCase().includes(q) || c.user.email.toLowerCase().includes(q);
+    }
+    return false;
+  });
 });
 
 function getCurrentUser() {
@@ -741,6 +723,52 @@ function updateChatListOnOpen(conversationId) {
   }
 }
 
+async function openAddParticipantsModal() {
+  if (!currentConversation.value || !currentConversation.value.group_id) return;
+  showAddParticipantsModal.value = true;
+  addParticipantsSearch.value = '';
+  selectedAddParticipants.value = [];
+  // Fetch all users not in the group
+  const groupId = currentConversation.value.group_id;
+  try {
+    const res = await axios.get('/users');
+    const groupUsers = selectedItem.value.users.map(u => u.id);
+    addParticipantsUsers.value = (res.data.users || res.data).filter(u => !groupUsers.includes(u.id));
+  } catch (e) {
+    addParticipantsUsers.value = [];
+  }
+}
+
+async function addParticipantsToGroup() {
+  if (!currentConversation.value || !currentConversation.value.group_id || selectedAddParticipants.value.length === 0) return;
+  try {
+    await axios.post(`/groups/${currentConversation.value.group_id}/add-users`, {
+      user_ids: selectedAddParticipants.value
+    });
+    showAddParticipantsModal.value = false;
+    // Refresh group info
+    await selectGroup(selectedItem.value);
+  } catch (e) {
+    // handle error
+  }
+}
+
+const filteredAddParticipantsUsers = computed(() => {
+  if (!addParticipantsSearch.value) return addParticipantsUsers.value;
+  const q = addParticipantsSearch.value.toLowerCase();
+  return addParticipantsUsers.value.filter(u =>
+    u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+  );
+});
+
+const filteredGroupUsers = computed(() => {
+  if (!groupUserSearch.value) return groupUsers.value;
+  const q = groupUserSearch.value.toLowerCase();
+  return groupUsers.value.filter(u =>
+    u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+  );
+});
+
 // Initialize component
 onMounted(async () => {
   try {
@@ -771,41 +799,35 @@ onUnmounted(() => {
 
 <style scoped>
 .chat-container {
-  height: 70vh;
-}
-
-.user-list {
-  max-height: calc(70vh - 150px);
-  overflow-y: auto;
-}
-
-@keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(40px);}
-  to { opacity: 1; transform: translateY(0);}
-}
-.animate-fade-in-up {
-  animation: fade-in-up 0.4s;
+  height: 80vh;
+  min-height: 500px;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  box-shadow: 0 4px 32px 0 rgba(0,0,0,0.08);
+  background: #181F2A;
 }
 
 ::-webkit-scrollbar {
   width: 6px;
 }
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
 ::-webkit-scrollbar-thumb {
-  background: #888;
+  background: #232B3E;
   border-radius: 3px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #FFA726;
 }
-
-.highlight {
-  background-color: #ffe066 !important;
-  transition: background-color 0.5s;
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s;
+}
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(40px);}
+  to { opacity: 1; transform: translateY(0);}
+}
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
 }
 </style> 
