@@ -33,13 +33,18 @@ const submit = () => {
     <GuestLayout>
         <Head title="Log in" />
 
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-white mb-2">Admin Dashboard</h1>
+            <p class="text-gray-400">Enter your credentials to access the admin area</p>
+        </div>
+
         <div v-if="status" class="mb-4 text-sm font-medium text-green-600">
             {{ status }}
         </div>
 
         <form @submit.prevent="submit">
             <div>
-                <InputLabel for="email" value="Email" />
+                <InputLabel for="email" value="Username" class="text-white" />
 
                 <TextInput
                     id="email"
@@ -49,13 +54,14 @@ const submit = () => {
                     required
                     autofocus
                     autocomplete="username"
+                    placeholder="Admin username"
                 />
 
                 <InputError class="mt-2" :message="form.errors.email" />
             </div>
 
             <div class="mt-4">
-                <InputLabel for="password" value="Password" />
+                <InputLabel for="password" value="Password" class="text-white" />
 
                 <TextInput
                     id="password"
@@ -64,6 +70,7 @@ const submit = () => {
                     v-model="form.password"
                     required
                     autocomplete="current-password"
+                    placeholder="Admin password"
                 />
 
                 <InputError class="mt-2" :message="form.errors.password" />
@@ -72,28 +79,29 @@ const submit = () => {
             <div class="mt-4 block">
                 <label class="flex items-center">
                     <Checkbox name="remember" v-model:checked="form.remember" />
-                    <span class="ms-2 text-sm text-gray-600"
+                    <span class="ms-2 text-sm text-gray-400"
                         >Remember me</span
                     >
                 </label>
             </div>
 
-            <div class="mt-4 flex items-center justify-end">
-                <Link
-                    v-if="canResetPassword"
-                    :href="route('password.request')"
-                    class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                >
-                    Forgot your password?
-                </Link>
-
+            <div class="mt-6">
                 <PrimaryButton
-                    class="ms-4"
                     :class="{ 'opacity-25': form.processing }"
                     :disabled="form.processing"
                 >
-                    Log in
+                    Sign in
                 </PrimaryButton>
+            </div>
+
+            <div class="mt-6 text-center">
+                <Link
+                    v-if="canResetPassword"
+                    :href="route('password.request')"
+                    class="text-sm text-orange-400 hover:text-orange-300 focus:outline-none"
+                >
+                    Return to homepage
+                </Link>
             </div>
         </form>
     </GuestLayout>

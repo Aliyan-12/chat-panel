@@ -58,46 +58,86 @@
 
     <!-- Main Chat Area -->
     <section class="flex-1 flex flex-col h-full">
-      <header v-if="currentConversation" class="p-4 border-b border-gray-200 bg-white flex items-center shadow-sm">
+      <header v-if="currentConversation" class="p-4 border-b border-gray-200 bg-[#232B3E] flex items-center shadow-sm">
         <div class="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg mr-3 shadow"
-          :class="selectedItem.type === 'user' ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gradient-to-br from-green-400 to-green-600'">
+          :class="selectedItem.type === 'user' ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gradient-to-br from-orange-400 to-orange-600'">
           {{ selectedItem.name.charAt(0).toUpperCase() }}
         </div>
         <div class="flex-1">
-          <div class="text-black font-semibold text-lg">{{ selectedItem.name }}</div>
-          <div class="text-xs text-gray-500">
+          <div class="text-white font-semibold text-lg group relative cursor-pointer" v-if="selectedItem.type === 'group'">
+            {{ selectedItem.name }}
+            <!-- Tooltip for group members -->
+            <div class="absolute left-0 top-full z-50 mt-2 w-64 rounded-lg bg-[#232B3E] p-3 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 border border-gray-200">
+              <h3 class="text-sm font-medium text-orange-500 mb-2">Group Members ({{ selectedItem.users.length }})</h3>
+              <ul class="max-h-48 overflow-y-auto">
+                <li v-for="user in selectedItem.users" :key="user.id" class="flex items-center py-1">
+                  <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs mr-2">
+                    {{ user.name.charAt(0).toUpperCase() }}
+                  </div>
+                  <span class="text-sm text-white">{{ user.name }}</span>
+                  <button 
+                    v-if="currentUser.id !== user.id" 
+                    @click="removeParticipant(user.id)" 
+                    class="ml-auto text-red-500 hover:text-red-700"
+                    title="Remove from group"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="text-gray-800 font-semibold text-lg" v-else>
+            {{ selectedItem.name }}
+          </div>
+          <div class="text-xs text-[#c9d0dd]">
             <span v-if="selectedItem.type === 'user'">{{ selectedItem.online ? 'Online' : 'Offline' }}</span>
             <span v-else>{{ selectedItem.users.length }} members</span>
           </div>
         </div>
-        <button v-if="selectedItem.type === 'group'" @click="openAddParticipantsModal" class="ml-4 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition text-sm font-medium flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-          Add Participants
+        <div class="flex items-center space-x-3">
+          <!-- Search Messages Button -->
+          <button @click="toggleSearchMessages" class="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
           </button>
+          <!-- Add Participants Button (only for groups) -->
+          <button v-if="selectedItem.type === 'group'" @click="openAddParticipantsModal" class="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+          </button>
+        </div>
       </header>
-      <div v-else class="flex-1 flex items-center justify-center bg-gray-50">
+      <div v-else class="flex-1 flex items-center justify-center bg-[#181F2A]">
         <div class="text-center text-gray-400">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
             <p class="text-xl">Select a user or group to start chatting</p>
-            </div>
-          </div>
+        </div>
+      </div>
           
-          <!-- Messages Area -->
-      <main v-if="currentConversation" class="flex-1 p-6 overflow-y-auto bg-gradient-to-b from-gray-50 to-gray-100" ref="messagesContainer">
-            <div v-if="conversations.length === 0" class="flex items-center justify-center h-full">
+      <!-- Messages Area -->
+      <main v-if="currentConversation" class="flex-1 p-6 overflow-y-auto bg-[#181F2A]" ref="messagesContainer">
+        <div v-if="conversations.length === 0" class="flex items-center justify-center h-full">
           <p class="text-gray-400">No messages yet. Start the conversation!</p>
         </div>
         <div v-else v-for="(message, index) in conversations" :key="index" :id="`message-${message.id}`" class="mb-6 flex flex-col"
-          :class="{'items-end': message.user_id === currentUser.id, 'items-start': message.user_id !== currentUser.id}">
-          <div class="flex items-end max-w-lg">
-            <div v-if="message.user_id !== currentUser.id" class="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 font-bold mr-2">
+          :class="{'items-end': message.user_id === currentUser.id, 'items-start': message.user_id !== currentUser.id, 'items-center': message.is_system}">
+          <div v-if="message.is_system" class="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-xs italic">
+            {{ message.message }}
+          </div>
+          <div v-else class="flex items-end max-w-lg">
+            <div v-if="message.user_id !== currentUser.id" class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold mr-2">
               {{ message.user ? message.user.name.charAt(0).toUpperCase() : '?' }}
             </div>
             <div :class="[
               'rounded-2xl px-4 py-2 shadow',
-              message.user_id === currentUser.id ? 'bg-blue-500 text-white' : 'bg-white text-gray-800 border border-gray-200'
+              message.user_id === currentUser.id ? 'bg-orange-500 text-white' : 'bg-[#232B3E] text-white border border-[#2A3446]'
             ]">
                 <template v-if="message.type === 'file'">
                   <a :href="fileUrl(message.file_path || message.message)" target="_blank" class="underline break-all">
@@ -108,53 +148,69 @@
                   </a>
                 </template>
                 <template v-else>
-                {{ message.message }}
+                  <div v-html="message.message" class="html-message"></div>
                 </template>
               </div>
-            <div v-if="message.user_id === currentUser.id" class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold ml-2">
+            <div v-if="message.user_id === currentUser.id" class="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold ml-2">
               {{ currentUser.name.charAt(0).toUpperCase() }}
             </div>
           </div>
-          <span class="text-xs text-gray-400 mt-1" :class="{'text-right': message.user_id === currentUser.id, 'text-left': message.user_id !== currentUser.id}">
+          <span v-if="!message.is_system" class="text-xs text-gray-400 mt-1" :class="{'text-right': message.user_id === currentUser.id, 'text-left': message.user_id !== currentUser.id}">
             {{ message.user ? message.user.name : 'Unknown' }} • {{ formatTime(message.created_at) }}
           </span>
         </div>
+        
+        <!-- Typing indicator -->
+        <div v-if="isTyping" class="flex items-start mb-4">
+          <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold mr-2">
+            {{ typingUser.charAt(0).toUpperCase() }}
+          </div>
+          <div class="bg-[#232B3E] text-white border border-[#2A3446] rounded-2xl px-4 py-3 shadow">
+            <div class="typing-indicator">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        </div>
       </main>
           
-          <!-- Message Input -->
-      <footer v-if="currentConversation" class="p-4 border-t border-gray-200 bg-white flex items-center space-x-2 shadow-inner">
+      <!-- Message Input -->
+      <footer v-if="currentConversation" class="p-4 border-t border-[#232B3E] bg-[#181F2A] flex items-center space-x-2 shadow-inner">
         <form enctype="multipart/form-data" @submit.prevent="sendMessage" class="flex items-center w-full space-x-2">
-          <label class="inline-flex items-center cursor-pointer bg-gray-100 px-3 py-2 rounded-lg hover:bg-gray-200 transition">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <label class="inline-flex items-center cursor-pointer bg-[#232B3E] px-3 py-2 rounded-lg hover:bg-[#2A3446] transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.586-6.586a4 4 0 10-5.656-5.656l-6.586 6.586" />
                 </svg>
                 <input type="file" class="hidden" @change="onFileChange" ref="fileInput" />
               </label>
-          <input
-            type="text"
-            v-model="newMessage"
-            placeholder="Type a message..."
-            class="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 text-sm"
-            :disabled="fileToSend"
+          <div 
+            ref="messageInput"
+            contenteditable="true"
+            class="flex-1 px-4 py-2 border border-[#232B3E] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-[#232B3E] text-white text-sm placeholder-gray-400 overflow-y-auto max-h-32"
+            :placeholder="fileToSend ? '' : 'Type a message...'"
+            @input="handleInput"
+            @paste="handlePaste"
+            @keydown.enter.prevent="sendMessage"
+          ></div>
+          <button 
+            type="submit" 
+            class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-400 transition"
+            :disabled="(!messageContent && !fileToSend)"
           >
-              <button 
-                type="submit" 
-            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-                :disabled="(!newMessage.trim() && !fileToSend)"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-              </button>
-            </form>
-        <div v-if="fileToSend" class="ml-2 flex items-center space-x-2 bg-gray-100 p-2 rounded-lg">
-              <span class="truncate max-w-xs">{{ fileToSend.name }}</span>
-              <button @click="removeFile" class="text-red-500 hover:text-red-700" title="Remove file">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+          </button>
+        </form>
+        <div v-if="fileToSend" class="ml-2 flex items-center space-x-2 bg-[#232B3E] p-2 rounded-lg text-white">
+          <span class="truncate max-w-xs">{{ fileToSend.name }}</span>
+          <button @click="removeFile" class="text-red-500 hover:text-red-400" title="Remove file">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </footer>
     </section>
 
@@ -163,19 +219,31 @@
       <div
         v-if="toaster.show"
         @click="onToasterClick"
-        class="fixed z-50 right-6 bottom-6 bg-blue-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 animate-fade-in-up cursor-pointer"
-        style="min-width: 250px; max-width: 350px;"
+        class="fixed z-50 right-6 bottom-6 bg-[#232B3E] border border-orange-400 text-white px-6 py-4 rounded-lg shadow-xl flex items-center space-x-3 animate-fade-in-up cursor-pointer"
+        style="min-width: 280px; max-width: 380px;"
       >
-        <div class="flex-1">
-          <div class="font-bold">
-            <span v-if="toaster.group">{{ toaster.group }} - </span>{{ toaster.sender }}
-          </div>
-          <div class="text-sm">
-            {{ toaster.shortMessage }}
-          </div>
-          <div class="text-xs text-gray-200 mt-1">{{ toaster.time }}</div>
+        <div class="text-orange-400 mr-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+          </svg>
         </div>
-        <button @click.stop="dismissToaster" class="ml-2 text-white hover:text-gray-200 focus:outline-none">
+        <div class="flex-1">
+          <div class="font-bold flex items-center">
+            <span v-if="toaster.group" class="text-orange-400">{{ toaster.group }} - </span>
+            <span>{{ toaster.sender }}</span>
+            <span class="ml-2 text-xs bg-orange-500 text-white px-2 py-0.5 rounded-full">New</span>
+          </div>
+          <div class="text-sm mt-1">
+            {{ toaster.message }}
+          </div>
+          <div class="text-xs text-gray-300 mt-1 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {{ toaster.time }}
+          </div>
+        </div>
+        <button @click.stop="dismissToaster" class="ml-2 text-gray-400 hover:text-white focus:outline-none">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -184,67 +252,67 @@
     </transition>
 
     <!-- Add Participants Modal -->
-    <div v-if="showAddParticipantsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-lg p-6 w-96 max-w-full">
+    <div v-if="showAddParticipantsModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+      <div class="bg-[#181F2A] border border-[#232B3E] rounded-lg shadow-xl p-6 w-96 max-w-full">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold">Add Participants</h2>
-          <button @click="showAddParticipantsModal = false" class="text-gray-500 hover:text-gray-700">
+          <h2 class="text-xl font-bold text-white">Add Participants</h2>
+          <button @click="showAddParticipantsModal = false" class="text-gray-400 hover:text-white">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
         <div class="mb-4">
-          <input type="text" v-model="addParticipantsSearch" placeholder="Search users..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input type="text" v-model="addParticipantsSearch" placeholder="Search users..." class="w-full px-3 py-2 border border-[#232B3E] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-[#232B3E] text-white placeholder-gray-400" />
         </div>
-        <div class="max-h-60 overflow-y-auto border border-gray-300 rounded-lg p-2 mb-4">
-          <div v-for="user in filteredAddParticipantsUsers" :key="user.id" class="flex items-center p-2 hover:bg-gray-100 rounded">
-            <input type="checkbox" :id="'add-user-' + user.id" :value="user.id" v-model="selectedAddParticipants" class="mr-2" />
+        <div class="max-h-60 overflow-y-auto border border-[#232B3E] rounded-lg p-2 mb-4">
+          <div v-for="user in filteredAddParticipantsUsers" :key="user.id" class="flex items-center p-2 hover:bg-[#232B3E] rounded">
+            <input type="checkbox" :id="'add-user-' + user.id" :value="user.id" v-model="selectedAddParticipants" class="mr-2 rounded border-[#232B3E] bg-[#232B3E] text-orange-500 focus:ring-orange-400" />
             <label :for="'add-user-' + user.id" class="flex items-center cursor-pointer">
-              <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold mr-2">
+              <div class="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold mr-2">
                 {{ user.name.charAt(0).toUpperCase() }}
               </div>
               <div>
-                <div class="font-medium">{{ user.name }}</div>
-                <div class="text-xs text-gray-500">{{ user.email }}</div>
+                <div class="font-medium text-white">{{ user.name }}</div>
+                <div class="text-xs text-gray-400">{{ user.email }}</div>
               </div>
             </label>
           </div>
           <div v-if="filteredAddParticipantsUsers.length === 0" class="text-gray-400 text-center py-2">No users found</div>
         </div>
         <div class="flex justify-end">
-          <button @click="showAddParticipantsModal = false" class="px-4 py-2 text-gray-600 mr-2 hover:text-gray-800">Cancel</button>
-          <button @click="addParticipantsToGroup" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500" :disabled="selectedAddParticipants.length === 0">Add</button>
+          <button @click="showAddParticipantsModal = false" class="px-4 py-2 text-gray-400 mr-2 hover:text-white">Cancel</button>
+          <button @click="addParticipantsToGroup" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-400" :disabled="selectedAddParticipants.length === 0">Add</button>
         </div>
       </div>
     </div>
     
     <!-- Create Group Modal -->
-    <div v-if="showCreateGroupModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-lg p-6 w-96 max-w-full">
+    <div v-if="showCreateGroupModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+      <div class="bg-[#181F2A] border border-[#232B3E] rounded-lg shadow-xl p-6 w-96 max-w-full">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold">Create New Group</h2>
-          <button @click="showCreateGroupModal = false" class="text-gray-500 hover:text-gray-700">
+          <h2 class="text-xl font-bold text-white">Create New Group</h2>
+          <button @click="showCreateGroupModal = false" class="text-gray-400 hover:text-white">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
         <div class="mb-4">
-          <input type="text" id="group-name" v-model="groupName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter group name" />
+          <input type="text" id="group-name" v-model="groupName" class="w-full px-3 py-2 border border-[#232B3E] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-[#232B3E] text-white placeholder-gray-400" placeholder="Enter group name" />
         </div>
         <div class="mb-4">
-          <input type="text" v-model="groupUserSearch" placeholder="Search users..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2" />
-          <div class="max-h-60 overflow-y-auto border border-gray-300 rounded-lg p-2">
-            <div v-for="user in filteredGroupUsers" :key="user.id" class="flex items-center p-2 hover:bg-gray-100 rounded">
-              <input type="checkbox" :id="'user-' + user.id" :value="user.id" v-model="selectedGroupUsers" class="mr-2" />
+          <input type="text" v-model="groupUserSearch" placeholder="Search users..." class="w-full px-3 py-2 border border-[#232B3E] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-[#232B3E] text-white placeholder-gray-400 mb-2" />
+          <div class="max-h-60 overflow-y-auto border border-[#232B3E] rounded-lg p-2">
+            <div v-for="user in filteredGroupUsers" :key="user.id" class="flex items-center p-2 hover:bg-[#232B3E] rounded">
+              <input type="checkbox" :id="'user-' + user.id" :value="user.id" v-model="selectedGroupUsers" class="mr-2 rounded border-[#232B3E] bg-[#232B3E] text-orange-500 focus:ring-orange-400" />
               <label :for="'user-' + user.id" class="flex items-center cursor-pointer">
-                <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold mr-2">
+                <div class="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold mr-2">
                   {{ user.name.charAt(0).toUpperCase() }}
                 </div>
                 <div>
-                  <div class="font-medium">{{ user.name }}</div>
-                  <div class="text-xs text-gray-500">{{ user.email }}</div>
+                  <div class="font-medium text-white">{{ user.name }}</div>
+                  <div class="text-xs text-gray-400">{{ user.email }}</div>
                 </div>
               </label>
             </div>
@@ -252,8 +320,50 @@
           </div>
         </div>
         <div class="flex justify-end">
-          <button @click="showCreateGroupModal = false" class="px-4 py-2 text-gray-600 mr-2 hover:text-gray-800">Cancel</button>
-          <button @click="createGroup" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500" :disabled="!groupName.trim() || selectedGroupUsers.length === 0">Create Group</button>
+          <button @click="showCreateGroupModal = false" class="px-4 py-2 text-gray-400 mr-2 hover:text-white">Cancel</button>
+          <button @click="createGroup" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-400" :disabled="!groupName.trim() || selectedGroupUsers.length === 0">Create Group</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search Messages Panel -->
+    <div v-if="showSearchMessages && currentConversation" class="p-3 border-b border-[#232B3E] bg-[#181F2A] flex flex-col">
+      <div class="flex items-center">
+        <div class="relative flex-1">
+          <input 
+            type="text" 
+            v-model="messageSearchQuery" 
+            placeholder="Search in this conversation..."
+            class="w-full px-4 py-2 pr-10 border border-[#232B3E] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-[#232B3E] text-sm text-white placeholder-gray-400"
+            @keyup.enter="searchMessages"
+          >
+          <button @click="clearMessageSearch" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <button @click="searchMessages" class="ml-2 p-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </button>
+      </div>
+      
+      <!-- Search Results -->
+      <div v-if="searchResults.length > 0" class="mt-2 text-gray-300 text-sm flex items-center justify-between">
+        <div>{{ searchResultIndex + 1 }} of {{ searchResults.length }} matches</div>
+        <div class="flex">
+          <button @click="navigateToPreviousResult" class="p-1 hover:text-orange-400" :disabled="searchResultIndex === 0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+            </svg>
+          </button>
+          <button @click="navigateToNextResult" class="p-1 hover:text-orange-400" :disabled="searchResultIndex === searchResults.length - 1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
         </div>
       </div>
     </div>
@@ -310,6 +420,21 @@ const selectedAddParticipants = ref([]);
 
 // For group creation modal search
 const groupUserSearch = ref('');
+
+const isTyping = ref(false);
+const typingUser = ref('');
+const typingTimeout = ref(null);
+const typingTimer = ref(null);
+
+// Add these variables for search functionality
+const showSearchMessages = ref(false);
+const messageSearchQuery = ref('');
+const isSearching = ref(false);
+const searchResultIndex = ref(0);
+
+// Add these variables for contenteditable message input
+const messageInput = ref(null);
+const messageContent = ref('');
 
 const filteredItems = computed(() => {
   const result = { users: [], groups: [] };
@@ -469,6 +594,9 @@ function listenForNewMessages(conversationId) {
       .error((error) => {
         console.error('Echo connection error:', error);
       });
+      
+    // Also listen for typing indicators
+    listenForTypingIndicators(conversationId);
   } catch (error) {
     console.error('Error setting up Echo listener:', error);
   }
@@ -546,16 +674,68 @@ function getFileName(path) {
   return filename.replace(/^\d{14}_/, '');
 }
 
+// Add these functions for handling HTML paste and input
+function handleInput(e) {
+  messageContent.value = e.target.innerHTML;
+  sendTypingIndicator();
+}
+
+function handlePaste(e) {
+  e.preventDefault();
+  
+  // Get clipboard data
+  const clipboardData = e.clipboardData || window.clipboardData;
+  
+  // Check if there are files (images) in the clipboard
+  if (clipboardData.files && clipboardData.files.length > 0) {
+    const file = clipboardData.files[0];
+    if (file.type.startsWith('image/')) {
+      fileToSend.value = file;
+      return;
+    }
+  }
+  
+  // Handle HTML content
+  let html = clipboardData.getData('text/html');
+  let text = clipboardData.getData('text/plain');
+  
+  // If HTML is available, use it, otherwise use plain text
+  if (html) {
+    // Sanitize HTML to prevent XSS
+    const sanitizedHtml = sanitizeHtml(html);
+    document.execCommand('insertHTML', false, sanitizedHtml);
+  } else if (text) {
+    document.execCommand('insertText', false, text);
+  }
+  
+  messageContent.value = messageInput.value.innerHTML;
+}
+
+// Simple HTML sanitizer function
+function sanitizeHtml(html) {
+  // Create a temporary div
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+  
+  // Remove potentially harmful elements
+  const scriptsAndEvents = tempDiv.querySelectorAll('script, [on*=]');
+  scriptsAndEvents.forEach(el => el.remove());
+  
+  // Get the sanitized HTML
+  return tempDiv.innerHTML;
+}
+
+// Update the sendMessage function to use messageContent
 async function sendMessage() {
-  if ((!newMessage.value.trim() && !fileToSend.value) || !currentConversation.value) return;
+  if ((!messageContent.value && !fileToSend.value) || !currentConversation.value) return;
   try {
     const formData = new FormData();
     formData.append('conversation_id', currentConversation.value.id);
     if (fileToSend.value) {
       formData.append('file', fileToSend.value);
     }
-    if (newMessage.value.trim()) {
-      formData.append('message', newMessage.value);
+    if (messageContent.value) {
+      formData.append('message', messageContent.value);
     }
     
     console.log('Sending message:', fileToSend.value ? 'with file' : 'text only');
@@ -570,7 +750,8 @@ async function sendMessage() {
     fileToSend.value = null;
     if (fileInput.value) fileInput.value.value = '';
     conversations.value.push(res.data);
-    newMessage.value = '';
+    messageContent.value = '';
+    if (messageInput.value) messageInput.value.innerHTML = '';
     scrollToBottom();
   } catch (e) {
     console.error('Error sending message:', e.response ? e.response.data : e);
@@ -795,16 +976,165 @@ onMounted(async () => {
 onUnmounted(() => {
   leaveChannels();
 });
+
+// Add this function after listenForNewMessages
+function listenForTypingIndicators(conversationId) {
+  if (window.Echo) {
+    try {
+      window.Echo.private(`conversation.${conversationId}`)
+        .listenForWhisper('typing', (e) => {
+          if (e.user_id !== currentUser.value.id) {
+            isTyping.value = true;
+            typingUser.value = e.name;
+            
+            // Clear any existing timeout
+            if (typingTimeout.value) clearTimeout(typingTimeout.value);
+            
+            // Set a new timeout to clear the typing indicator after 3 seconds
+            typingTimeout.value = setTimeout(() => {
+              isTyping.value = false;
+            }, 3000);
+          }
+        });
+    } catch (error) {
+      console.error('Error setting up typing indicator:', error);
+    }
+  }
+}
+
+// Update the sendTypingIndicator function
+function sendTypingIndicator() {
+  // Clear the existing timer
+  if (typingTimer.value) clearTimeout(typingTimer.value);
+  
+  // Set a new timer to send the typing indicator
+  typingTimer.value = setTimeout(() => {
+    if (window.Echo && currentConversation.value) {
+      try {
+        window.Echo.private(`conversation.${currentConversation.value.id}`)
+          .whisper('typing', {
+            user_id: currentUser.value.id,
+            name: currentUser.value.name
+          });
+      } catch (error) {
+        console.error('Error sending typing indicator:', error);
+      }
+    }
+  }, 300); // 300ms debounce
+}
+
+// Add these functions for search functionality
+function toggleSearchMessages() {
+  showSearchMessages.value = !showSearchMessages.value;
+  if (!showSearchMessages.value) {
+    clearMessageSearch();
+  }
+}
+
+function searchMessages() {
+  if (!messageSearchQuery.value.trim() || !currentConversation.value) return;
+  
+  isSearching.value = true;
+  searchResults.value = conversations.value.filter(message => 
+    message.message && message.message.toLowerCase().includes(messageSearchQuery.value.toLowerCase())
+  );
+  
+  // Reset search result index
+  searchResultIndex.value = 0;
+  
+  if (searchResults.value.length > 0) {
+    // Highlight and scroll to the first result
+    nextTick(() => {
+      highlightAndScrollToResult(searchResultIndex.value);
+    });
+  }
+  
+  isSearching.value = false;
+}
+
+function highlightAndScrollToResult(index) {
+  // Remove any existing highlights
+  document.querySelectorAll('.search-highlight').forEach(el => {
+    el.classList.remove('search-highlight');
+  });
+  
+  // Highlight and scroll to the current result
+  if (searchResults.value[index]) {
+    const messageEl = document.getElementById(`message-${searchResults.value[index].id}`);
+    if (messageEl) {
+      messageEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      messageEl.classList.add('search-highlight');
+    }
+  }
+}
+
+function clearMessageSearch() {
+  messageSearchQuery.value = '';
+  searchResults.value = [];
+  // Remove any highlights
+  document.querySelectorAll('.search-highlight').forEach(el => {
+    el.classList.remove('search-highlight');
+  });
+}
+
+// Add these functions for search functionality
+function navigateToPreviousResult() {
+  if (searchResultIndex.value > 0) {
+    searchResultIndex.value--;
+    highlightAndScrollToResult(searchResultIndex.value);
+  }
+}
+
+function navigateToNextResult() {
+  if (searchResultIndex.value < searchResults.value.length - 1) {
+    searchResultIndex.value++;
+    highlightAndScrollToResult(searchResultIndex.value);
+  }
+}
+
+// Add this function to remove participants from a group
+async function removeParticipant(userId) {
+  if (!currentConversation.value || !currentConversation.value.group_id) return;
+  
+  try {
+    await axios.post(`/groups/${currentConversation.value.group_id}/remove-users`, {
+      user_ids: [userId]
+    });
+    
+    // Update the group members list
+    const index = selectedItem.value.users.findIndex(u => u.id === userId);
+    if (index !== -1) {
+      selectedItem.value.users.splice(index, 1);
+    }
+    
+    // Add a system message
+    const removedUser = selectedItem.value.users.find(u => u.id === userId);
+    const systemMessage = {
+      id: Date.now(),
+      user_id: null,
+      message: `${removedUser ? removedUser.name : 'User'} has been removed from the group`,
+      created_at: new Date().toISOString(),
+      is_system: true
+    };
+    
+    conversations.value.push(systemMessage);
+    scrollToBottom();
+  } catch (e) {
+    console.error('Error removing user from group:', e);
+  }
+}
 </script>
 
 <style scoped>
 .chat-container {
-  height: 80vh;
-  min-height: 500px;
-  border-radius: 1.5rem;
+  height: 90vh;
+  min-height: 600px;
+  border-radius: 0;
   overflow: hidden;
-  box-shadow: 0 4px 32px 0 rgba(0,0,0,0.08);
+  box-shadow: 0 4px 12px 0 rgba(0,0,0,0.1);
   background: #181F2A;
+  border: none;
+  transition: all 0.3s ease;
 }
 
 ::-webkit-scrollbar {
@@ -829,5 +1159,123 @@ onUnmounted(() => {
 }
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
+}
+
+/* Message highlight animation */
+@keyframes highlight-pulse {
+  0% { background-color: rgba(255, 165, 0, 0.1); }
+  50% { background-color: rgba(255, 165, 0, 0.2); }
+  100% { background-color: rgba(255, 165, 0, 0); }
+}
+
+.highlight {
+  animation: highlight-pulse 2s ease-in-out;
+  border-radius: 1rem;
+}
+
+/* Search highlight animation */
+@keyframes search-highlight-pulse {
+  0% { background-color: rgba(255, 0, 0, 0.1); }
+  50% { background-color: rgba(255, 0, 0, 0.2); }
+  100% { background-color: rgba(255, 0, 0, 0.1); }
+}
+
+.search-highlight {
+  animation: search-highlight-pulse 2s ease-in-out infinite;
+  border-radius: 1rem;
+}
+
+/* Typing indicator */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+}
+
+.typing-indicator span {
+  height: 8px;
+  width: 8px;
+  margin: 0 1px;
+  background-color: #FFA726;
+  display: block;
+  border-radius: 50%;
+  opacity: 0.4;
+}
+
+.typing-indicator span:nth-of-type(1) {
+  animation: typing 1s infinite;
+}
+
+.typing-indicator span:nth-of-type(2) {
+  animation: typing 1s 0.33s infinite;
+}
+
+.typing-indicator span:nth-of-type(3) {
+  animation: typing 1s 0.66s infinite;
+}
+
+@keyframes typing {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  
+  50% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
+/* Badge animation */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.animate-pulse {
+  animation: pulse 1.5s infinite;
+}
+
+/* Contenteditable placeholder */
+[contenteditable=true]:empty:before {
+  content: attr(placeholder);
+  color: #6B7280;
+  pointer-events: none;
+  display: block;
+}
+
+/* HTML message styling */
+:deep(.html-message) {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+:deep(.html-message img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+:deep(.html-message a) {
+  color: #FFA726;
+  text-decoration: underline;
+}
+
+:deep(.html-message table) {
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+}
+
+:deep(.html-message table td, .html-message table th) {
+  border: 1px solid #2A3446;
+  padding: 0.25rem 0.5rem;
+}
+
+:deep(.html-message pre, .html-message code) {
+  background-color: #0A1526;
+  border-radius: 0.25rem;
+  padding: 0.25rem;
+  font-family: monospace;
 }
 </style> 
