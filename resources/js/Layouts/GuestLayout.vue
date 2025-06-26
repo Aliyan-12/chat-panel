@@ -7,7 +7,7 @@ import { Link } from '@inertiajs/vue3';
     <div
         class="flex min-h-screen flex-col items-center bg-[#0A1526] pt-6 sm:justify-center sm:pt-0"
     >
-        <div class="w-64 h-64">
+        <div class="w-64 h-24">
             <BaliTechLogo />
         </div>
 

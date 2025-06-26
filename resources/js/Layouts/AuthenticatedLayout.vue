@@ -23,8 +23,8 @@ const showingNavigationDropdown = ref(false);
                             <!-- Logo -->
                             <div class="flex shrink-0 items-center">
                                 <Link :href="route('dashboard')">
-                                    <div class="h-10 w-10">
-                                        <BaliTechLogo />
+                                    <div class="h-10 w-32">
+                                        <BaliTechLogo type="revert"/>
                                     </div>
                                 </Link>
                             </div>
