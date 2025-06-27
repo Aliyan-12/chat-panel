@@ -116,7 +116,7 @@ class ConversationController extends Controller
             'message' => 'nullable|string',
             'file' => 'nullable|file|max:10240', // max 10MB
         ]);
-        
+        // dd($request->all());
         // Ensure at least one of message or file is present
         if (!$request->has('message') && !$request->hasFile('file')) {
             return response()->json(['message' => 'Either message or file is required'], 422);
@@ -146,13 +146,13 @@ class ConversationController extends Controller
             $fileNameWithTimestamp = date('YmdHis') . '_' . pathinfo($originalName, PATHINFO_FILENAME) . '.' . $extension;
             $filePath = $file->storeAs('chat_files', $fileNameWithTimestamp, 'public');
             $type = 'file';
-            $messageText = $fileNameWithTimestamp; // Only the filename
+            // $messageText = $fileNameWithTimestamp; // Only the filename
         }
 
         $message = Message::create([
             'conversation_id' => $conversation->id,
             'user_id' => $authId,
-            'message' => $originalName ?? $messageText,
+            'message' => $messageText,
             'type' => $type,
             'file_path' => $filePath,
         ]);

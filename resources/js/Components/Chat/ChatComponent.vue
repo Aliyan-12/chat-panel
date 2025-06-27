@@ -142,10 +142,11 @@
                 <template v-if="message.type === 'file'">
                   <a :href="fileUrl(message.file_path || message.message)" target="_blank" class="underline break-all">
                     <template v-if="isImageFile(message.file_path || message.message)">
-                      <img :src="fileUrl(message.file_path || message.message)" :alt="message.message" class="max-h-40 max-w-xs rounded mb-1" />
+                      <img :src="fileUrl(message.file_path || message.message)" :alt="getFileName(message.file_path || message.message)" class="max-h-40 max-w-xs rounded mb-1" />
                     </template>
                     <span>{{ getFileName(message.file_path || message.message) }}</span>
                   </a>
+                  <div v-if="message.message && getFileName(message.file_path || message.message) !== message.message" v-html="message.message" class="html-message mt-1"></div>
                 </template>
                 <template v-else>
                   <div v-html="message.message" class="html-message"></div>
@@ -731,12 +732,9 @@ async function sendMessage() {
   try {
     const formData = new FormData();
     formData.append('conversation_id', currentConversation.value.id);
-    if (fileToSend.value) {
-      formData.append('file', fileToSend.value);
-    }
-    if (messageContent.value) {
-      formData.append('message', messageContent.value);
-    }
+    // Always append both fields, even if one is empty
+    formData.append('file', fileToSend.value || '');
+    formData.append('message', messageContent.value || '');
     
     console.log('Sending message:', fileToSend.value ? 'with file' : 'text only');
     
