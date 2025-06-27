@@ -470,13 +470,14 @@ const filteredItems = computed(() => {
 const filteredChatList = computed(() => {
   let list = chatList.value.slice();
   // Add users from searchResults.users who are not already in chatList (for new chats)
-  if (searchResults.value && searchResults.value.users) {
+  if (searchResults.value && searchResults.value.users && currentUser.value) {
     searchResults.value.users.forEach(user => {
-      const exists = list.some(c => c.type === 'individual' && c.user && c.user.id === user.id);
+      if (user.id === currentUser.value.id) return; // Don't show self
+      const exists = list.some(c => c.type === 'user' && c.user && c.user.id === user.id);
       if (!exists) {
         list.push({
           id: `new-${user.id}`,
-          type: 'individual',
+          type: 'user', // Use 'user' for consistency
           user: user,
           last_message: null,
           unread_count: 0,
@@ -486,7 +487,7 @@ const filteredChatList = computed(() => {
     });
   }
   if (activeTab.value === 'users') {
-    list = list.filter(c => c.type === 'individual');
+    list = list.filter(c => c.type === 'user');
   } else if (activeTab.value === 'groups') {
     list = list.filter(c => c.type === 'group');
   }
@@ -495,7 +496,7 @@ const filteredChatList = computed(() => {
   return list.filter(c => {
     if (c.type === 'group') {
       return c.group.name.toLowerCase().includes(q);
-    } else if (c.type === 'individual') {
+    } else if (c.type === 'user') {
       return c.user.name.toLowerCase().includes(q) || c.user.email.toLowerCase().includes(q);
     }
     return false;
