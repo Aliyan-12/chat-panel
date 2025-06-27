@@ -16,37 +16,144 @@ class UsersTableSeeder extends Seeder
     public function run(): void
     {
         $user = User::create([
-            'name' => 'Admin User',
-            'email' => 'admin@example.com',
+            'name' => 'Ali Bashir',
+            'email' => 'abash17@admin.com',
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('admin');
 
         $user = User::create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+            'name' => 'Mian Paul',
+            'email' => 'mian@admin.com',
             'password' => Hash::make($this->pass),
         ]);
-        $user->assignRole('user');
+        $user->assignRole('admin');
 
         // Create some additional users
         $user = User::create([
-            'name' => 'John Doe',
-            'email' => 'john@example.com',
+            'name' => 'Ella Swift',
+            'email' => 'ella5002@fronter.com',
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
         
         $user = User::create([
-            'name' => 'Jane Smith',
-            'email' => 'jane@example.com',
+            'name' => 'Daniel Mitchell',
+            'email' => 'daniel5003@fronter.com',
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
 
         $user = User::create([
-            'name' => 'Bob Johnson',
-            'email' => 'bob@example.com',
+            'name' => 'David Williams',
+            'email' => 'david5001@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+
+
+        $user = User::create([
+            'name' => 'Peter johnson',
+            'email' => 'peter5012@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+        $user = User::create([
+            'name' => 'Alex Wood	',
+            'email' => 'alex5004@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+        $user = User::create([
+            'name' => 'Emma Watson',
+            'email' => 'emma5013@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+        $user = User::create([
+            'name' => 'Ethen Oliver',
+            'email' => 'ethen5020@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+        $user = User::create([
+            'name' => 'Mark Wilson',
+            'email' => 'mark5005@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+        $user = User::create([
+            'name' => 'Josh Wood',
+            'email' => 'josh5011@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+        $user = User::create([
+            'name' => 'Steve Parker	',
+            'email' => 'steve5010@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+        $user = User::create([
+            'name' => 'Eric Jonson',
+            'email' => 'eric5009@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+
+
+        $user = User::create([
+            'name' => 'Mike Davis',
+            'email' => 'mike5014@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+        $user = User::create([
+            'name' => 'Sam Willson',
+            'email' => 'sam5015@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+        $user = User::create([
+            'name' => 'Mark Wilson',
+            'email' => 'mark5005@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+        $user = User::create([
+            'name' => 'John Spark',
+            'email' => 'john4003@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+        $user = User::create([
+            'name' => 'Mike Davis',
+            'email' => 'mike4001@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+        $user = User::create([
+            'name' => 'Travis Scott',
+            'email' => 'travis4002@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+        $user = User::create([
+            'name' => 'Sofia Emilis',
+            'email' => 'sofia5017@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+
+        $user = User::create([
+            'name' => 'John Herrison',
+            'email' => 'john4005@fronter.com',
+            'password' => Hash::make($this->pass),
+        ]);
+        $user->assignRole('user');
+        $user = User::create([
+            'name' => 'Jay Smith',
+            'email' => 'jay4006@fronter.com',
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
