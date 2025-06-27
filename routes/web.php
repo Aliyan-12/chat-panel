@@ -19,7 +19,7 @@ Route::get('/', function () {
     //     'laravelVersion' => Application::VERSION,
     //     'phpVersion' => PHP_VERSION,
     // ]);
-    return redirect()->to('/login');
+    return redirect()->to('login');
 });
 
 Route::get('/dashboard', function () {
