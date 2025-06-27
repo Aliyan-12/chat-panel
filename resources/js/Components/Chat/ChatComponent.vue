@@ -468,7 +468,23 @@ const filteredItems = computed(() => {
 });
 
 const filteredChatList = computed(() => {
-  let list = chatList.value;
+  let list = chatList.value.slice();
+  // Add users from searchResults.users who are not already in chatList (for new chats)
+  if (searchResults.value && searchResults.value.users) {
+    searchResults.value.users.forEach(user => {
+      const exists = list.some(c => c.type === 'individual' && c.user && c.user.id === user.id);
+      if (!exists) {
+        list.push({
+          id: `new-${user.id}`,
+          type: 'individual',
+          user: user,
+          last_message: null,
+          unread_count: 0,
+          group: null
+        });
+      }
+    });
+  }
   if (activeTab.value === 'users') {
     list = list.filter(c => c.type === 'individual');
   } else if (activeTab.value === 'groups') {
