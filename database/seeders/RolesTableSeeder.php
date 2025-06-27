@@ -15,15 +15,28 @@ class UsersTableSeeder extends Seeder
     public function run(): void
     {
         Permission::create([
-            'name' => 'Can Create Groups',
+            'name' => 'can create groups',
             'guard_name' => 'web'
         ]);
         Permission::create([
-            'name' => 'Can Add Users',
+            'name' => 'can add group-users',
             'guard_name' => 'web'
         ]);
         Permission::create([
-            'name' => 'Can Delete Users',
+            'name' => 'can delete group-users',
+            'guard_name' => 'web'
+        ]);
+
+        Permission::create([
+            'name' => 'can create users',
+            'guard_name' => 'web'
+        ]);
+        Permission::create([
+            'name' => 'can edit users',
+            'guard_name' => 'web'
+        ]);
+        Permission::create([
+            'name' => 'can delete users',
             'guard_name' => 'web'
         ]);
 
@@ -47,7 +60,9 @@ class UsersTableSeeder extends Seeder
             return Permission::all();
         }
         if($name == 'user') {
-            return ['Can Mark Attendance', 'Can View Tasks', 'Can Add Tasks', 'Can Edit Tasks', 'Can Delete Tasks'];
+            return ['can create groups', 'can add group-users', 
+            'can delete group-users', 'can create users', 
+            'can edit users', 'can delete users'];
         }
     }
 } 
