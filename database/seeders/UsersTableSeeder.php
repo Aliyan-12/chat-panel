@@ -22,9 +22,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('admin');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'Mian Paul',
@@ -32,9 +29,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('admin');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         // Create some additional users
         $user = User::create([
@@ -43,9 +37,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
         
         $user = User::create([
             'name' => 'Daniel Mitchell',
@@ -53,9 +44,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'David Williams',
@@ -63,9 +51,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'Peter johnson',
@@ -73,9 +58,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'Alex Wood',
@@ -83,9 +65,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'Emma Watson',
@@ -93,9 +72,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'Ethen Oliver',
@@ -103,9 +79,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'Josh Wood',
@@ -113,9 +86,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
         
         $user = User::create([
             'name' => 'Steve Parker	',
@@ -123,9 +93,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'Eric Jonson',
@@ -133,9 +100,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'Mike Davis',
@@ -143,9 +107,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'Sam Willson',
@@ -153,9 +114,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'Mark Wilson',
@@ -163,9 +121,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'John Spark',
@@ -173,9 +128,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'Mike Davis',
@@ -183,9 +135,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'Travis Scott',
@@ -193,9 +142,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'Sofia Emilis',
@@ -203,9 +149,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'John Herrison',
@@ -213,9 +156,6 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
 
         $user = User::create([
             'name' => 'Jay Smith',
@@ -223,8 +163,5 @@ class UsersTableSeeder extends Seeder
             'password' => Hash::make($this->pass),
         ]);
         $user->assignRole('user');
-        Conversation::create([
-            'reciever_id' => $user->id
-        ]);
     }
 } 
