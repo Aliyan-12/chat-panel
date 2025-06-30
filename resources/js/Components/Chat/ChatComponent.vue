@@ -701,7 +701,7 @@ function handleInput(e) {
     messageContent.value = '';
   }
   
-  console.log('Input HTML content:', messageContent.value);
+  // console.log('Input HTML content:', messageContent.value);
   sendTypingIndicator();
 }
 
@@ -834,8 +834,8 @@ async function sendMessage() {
     formData.append('file', fileToSend.value || '');
     formData.append('message', htmlMessage);
     
-    console.log('Sending message:', fileToSend.value ? 'with file' : 'text only');
-    console.log('Message HTML content:', htmlMessage);
+    // console.log('Sending message:', fileToSend.value ? 'with file' : 'text only');
+    // console.log('Message HTML content:', htmlMessage);
     
     const res = await axios.post('/conversations', formData, {
       headers: { 
@@ -1253,12 +1253,15 @@ async function removeParticipant(userId) {
 
 function handleKeyDown(e) {
   // If Enter is pressed without Shift, send the message
+  console.log(e.shiftKey);
+  console.log(e.key);
+  console.log('1234');
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     sendMessage();
   }
   // If Shift+Enter is pressed, insert a line break
-  else if (e.key === 'Enter' && e.shiftKey) {
+  else if (e.key === 'Alt' && e.shiftKey) {
     e.preventDefault();
     
     // Insert a line break at cursor position
