@@ -188,16 +188,19 @@
           <div 
             ref="messageInput"
             contenteditable="true"
-            class="flex-1 px-4 py-2 border border-[#232B3E] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-[#232B3E] text-white text-sm placeholder-gray-400 overflow-y-auto max-h-32"
-            :placeholder="fileToSend ? '' : 'Type a message...'"
+            class="flex-1 px-4 py-2 border border-[#232B3E] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-[#232B3E] text-white text-sm placeholder-gray-400 overflow-y-auto"
+            :placeholder="fileToSend ? '' : 'Type a message... (Enter to send, Shift+Enter for new line)'"
             @input="handleInput"
             @paste="handlePaste"
-            @keydown.enter.prevent="sendMessage"
+            @keydown="handleKeyDown"
+            role="textbox"
+            aria-multiline="true"
           ></div>
           <button 
             type="submit" 
             class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-400 transition"
-            :disabled="(!messageContent && !fileToSend)"
+            :class="{ 'opacity-50 cursor-not-allowed': isMessageEmpty && !fileToSend }"
+            :disabled="isMessageEmpty && !fileToSend"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -436,6 +439,19 @@ const searchResultIndex = ref(0);
 // Add these variables for contenteditable message input
 const messageInput = ref(null);
 const messageContent = ref('');
+
+// Add isMessageEmpty computed property
+const isMessageEmpty = computed(() => {
+  if (!messageContent.value) return true;
+  
+  // Check if the content is just whitespace, &nbsp;, or <br> tags
+  const cleanContent = messageContent.value
+    .replace(/<br\s*\/?>/gi, '')
+    .replace(/&nbsp;/g, '')
+    .trim();
+    
+  return cleanContent === '';
+});
 
 const filteredItems = computed(() => {
   const result = { users: [], groups: [] };
@@ -677,7 +693,15 @@ function getFileName(path) {
 
 // Add these functions for handling HTML paste and input
 function handleInput(e) {
+  // Store the raw HTML content
   messageContent.value = e.target.innerHTML;
+  
+  // Clear content if it's just a single <br> tag
+  if (messageContent.value === '<br>') {
+    messageContent.value = '';
+  }
+  
+  console.log('Input HTML content:', messageContent.value);
   sendTypingIndicator();
 }
 
@@ -696,47 +720,122 @@ function handlePaste(e) {
     }
   }
   
-  // Handle HTML content
-  let html = clipboardData.getData('text/html');
-  let text = clipboardData.getData('text/plain');
-  
-  // If HTML is available, use it, otherwise use plain text
-  if (html) {
-    // Sanitize HTML to prevent XSS
-    const sanitizedHtml = sanitizeHtml(html);
-    document.execCommand('insertHTML', false, sanitizedHtml);
-  } else if (text) {
-    document.execCommand('insertText', false, text);
+  try {
+    // Handle HTML content
+    let html = clipboardData.getData('text/html');
+    let text = clipboardData.getData('text/plain');
+    
+    // If HTML is available, use it, otherwise use plain text
+    if (html && html.trim() !== '') {
+      // Sanitize HTML to prevent XSS
+      const sanitizedHtml = sanitizeHtml(html);
+      document.execCommand('insertHTML', false, sanitizedHtml);
+    } else if (text) {
+      // For plain text, preserve line breaks by converting them to <br> tags
+      const textWithLineBreaks = text.replace(/\n/g, '<br>');
+      document.execCommand('insertHTML', false, textWithLineBreaks);
+    }
+    
+    // Update the message content value
+    nextTick(() => {
+      messageContent.value = messageInput.value.innerHTML;
+    });
+  } catch (error) {
+    console.error('Error handling paste:', error);
+    // Fallback to simple text insertion
+    const text = clipboardData.getData('text/plain');
+    if (text) {
+      const textWithLineBreaks = text.replace(/\n/g, '<br>');
+      document.execCommand('insertHTML', false, textWithLineBreaks);
+      messageContent.value = messageInput.value.innerHTML;
+    }
   }
-  
-  messageContent.value = messageInput.value.innerHTML;
 }
 
-// Simple HTML sanitizer function
+// Enhanced HTML sanitizer function
 function sanitizeHtml(html) {
   // Create a temporary div
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = html;
   
   // Remove potentially harmful elements
-  const scriptsAndEvents = tempDiv.querySelectorAll('script, [on*=]');
+  const scriptsAndEvents = tempDiv.querySelectorAll('script, style, iframe, object, embed, [on*=]');
   scriptsAndEvents.forEach(el => el.remove());
   
-  // Get the sanitized HTML
-  return tempDiv.innerHTML;
+  // Keep only allowed tags and attributes
+  const allowedTags = ['p', 'br', 'b', 'i', 'u', 'strong', 'em', 'span', 'div'];
+  const allElements = tempDiv.querySelectorAll('*');
+  
+  allElements.forEach(el => {
+    // If not in allowed tags list, replace with its text content
+    if (!allowedTags.includes(el.tagName.toLowerCase())) {
+      // Keep the text content
+      const textContent = el.textContent;
+      const textNode = document.createTextNode(textContent);
+      el.parentNode.replaceChild(textNode, el);
+    } else {
+      // Remove all attributes except a few safe ones
+      const allowedAttrs = ['class'];
+      Array.from(el.attributes).forEach(attr => {
+        if (!allowedAttrs.includes(attr.name)) {
+          el.removeAttribute(attr.name);
+        }
+      });
+    }
+  });
+  
+  // Preserve line breaks, spaces, and basic formatting
+  let cleanHtml = tempDiv.innerHTML
+    .replace(/\n/g, '<br>')
+    .replace(/  +/g, match => '&nbsp;'.repeat(match.length));
+  
+  return cleanHtml;
 }
 
-// Update the sendMessage function to use messageContent
+// Add this function to ensure HTML content is properly preserved
+function getMessageHtml() {
+  // Get the raw HTML content from the contenteditable div
+  let html = messageInput.value ? messageInput.value.innerHTML : '';
+  
+  // Make sure line breaks are properly represented as <br> tags
+  html = html.replace(/\n/g, '<br>');
+  
+  // If the content is just a single <br> or empty, return empty string
+  if (html === '<br>' || html === '' || html.trim() === '') {
+    return '';
+  }
+  
+  return html;
+}
+
+// Update the sendMessage function to use messageContent with HTML preserved
 async function sendMessage() {
-  if ((!messageContent.value && !fileToSend.value) || !currentConversation.value) return;
+  // Get the HTML content
+  const htmlMessage = getMessageHtml();
+  
+  // Check if the message is empty (only contains whitespace, &nbsp;, or <br> tags)
+  const isEmptyMessage = !htmlMessage.trim() || 
+                         htmlMessage.replace(/<br\s*\/?>/gi, '').replace(/&nbsp;/g, '').trim() === '';
+  
+  // If both message and file are empty, show error and return
+  if (isEmptyMessage && !fileToSend.value) {
+    // Show popup notification
+    showNotification('Message cannot be empty', 'error');
+    return;
+  }
+  
+  if (!currentConversation.value) return;
+  
   try {
     const formData = new FormData();
     formData.append('conversation_id', currentConversation.value.id);
+    
     // Always append both fields, even if one is empty
     formData.append('file', fileToSend.value || '');
-    formData.append('message', messageContent.value || '');
+    formData.append('message', htmlMessage);
     
     console.log('Sending message:', fileToSend.value ? 'with file' : 'text only');
+    console.log('Message HTML content:', htmlMessage);
     
     const res = await axios.post('/conversations', formData, {
       headers: { 
@@ -753,7 +852,37 @@ async function sendMessage() {
     scrollToBottom();
   } catch (e) {
     console.error('Error sending message:', e.response ? e.response.data : e);
+    showNotification('Failed to send message', 'error');
   }
+}
+
+// Add a notification function
+function showNotification(message, type = 'info') {
+  // Create notification element
+  const notification = document.createElement('div');
+  notification.className = `notification fixed z-50 bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg text-white ${type === 'error' ? 'bg-red-500' : 'bg-green-500'}`;
+  notification.textContent = message;
+  
+  // Add to document
+  document.body.appendChild(notification);
+  
+  // Trigger animation
+  setTimeout(() => {
+    notification.classList.add('notification-enter-active');
+  }, 10);
+  
+  // Remove after 3 seconds
+  setTimeout(() => {
+    notification.classList.add('notification-leave-active');
+    notification.classList.add('opacity-0');
+    notification.style.transform = 'translate(-50%, 20px)';
+    
+    setTimeout(() => {
+      if (notification.parentNode) {
+        document.body.removeChild(notification);
+      }
+    }, 300);
+  }, 3000);
 }
 
 function openCreateGroupModal() {
@@ -1121,6 +1250,28 @@ async function removeParticipant(userId) {
     console.error('Error removing user from group:', e);
   }
 }
+
+function handleKeyDown(e) {
+  // If Enter is pressed without Shift, send the message
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+  // If Shift+Enter is pressed, insert a line break
+  else if (e.key === 'Enter' && e.shiftKey) {
+    e.preventDefault();
+    
+    // Insert a line break at cursor position
+    // Use insertHTML to ensure it's saved as an HTML <br> tag
+    document.execCommand('insertHTML', false, '<br>');
+    
+    // Update the message content with the raw HTML content
+    messageContent.value = messageInput.value.innerHTML;
+    
+    // Log the content for debugging
+    console.log('Message content after line break:', messageContent.value);
+  }
+}
 </script>
 
 <style scoped>
@@ -1242,10 +1393,42 @@ async function removeParticipant(userId) {
   display: block;
 }
 
+/* Contenteditable styling */
+[contenteditable=true] {
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 2.5rem;
+  max-height: 8rem;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+
+[contenteditable=true] br {
+  display: block;
+  content: "";
+  margin-top: 0.5em;
+}
+
+[contenteditable=true]:focus {
+  outline: none;
+}
+
 /* HTML message styling */
 :deep(.html-message) {
   max-width: 100%;
   overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+:deep(.html-message br) {
+  display: block;
+  content: "";
+  margin-top: 0.5em;
+}
+
+:deep(.html-message p) {
+  margin-bottom: 0.5em;
 }
 
 :deep(.html-message img) {
@@ -1275,5 +1458,22 @@ async function removeParticipant(userId) {
   border-radius: 0.25rem;
   padding: 0.25rem;
   font-family: monospace;
+}
+
+/* Notification animation */
+.notification-enter-active,
+.notification-leave-active {
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.notification-enter-from,
+.notification-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* Ensure the notification has proper z-index */
+.notification {
+  z-index: 9999;
 }
 </style> 

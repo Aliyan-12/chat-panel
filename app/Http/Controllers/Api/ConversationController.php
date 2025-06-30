@@ -113,7 +113,7 @@ class ConversationController extends Controller
         
         $request->validate([
             'conversation_id' => 'required|exists:conversations,id',
-            'message' => 'nullable|string',
+            'message' => 'nullable',  // Removed string validation to allow HTML content
             'file' => 'nullable|file|max:10240', // max 10MB
         ]);
         // dd($request->all());
