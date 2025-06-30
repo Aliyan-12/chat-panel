@@ -89,7 +89,7 @@
               </ul>
             </div>
           </div>
-          <div class="text-gray-800 font-semibold text-lg" v-else>
+          <div class="text-white font-semibold text-lg" v-else>
             {{ selectedItem.name }}
           </div>
           <div class="text-xs text-[#c9d0dd]">
