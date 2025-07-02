@@ -23,7 +23,10 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
+    // dd(Auth::user()->hasRole('admin'));
+    return Inertia::render('Dashboard', [
+        'isAdmin' => Auth::user()->hasRole('admin'),
+    ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {

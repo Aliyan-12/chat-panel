@@ -2,6 +2,15 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import BaliTechLogo from '@/Components/BaliTechLogo.vue';
 import { Head } from '@inertiajs/vue3';
+
+defineProps({
+    isAdmin: {
+        type: Boolean,
+    },
+    isUser: {
+        type: Boolean,
+    },
+});
 </script>
 
 <template>
@@ -20,6 +29,11 @@ import { Head } from '@inertiajs/vue3';
                         </div>
                         <p class="text-center">You're logged in! Start using the chat application by clicking on the Chat link in the navigation.</p>
                     </div>
+                </div>
+
+                <div v-if="isAdmin">
+                    i am only for admins
+                
                 </div>
             </div>
         </div>
