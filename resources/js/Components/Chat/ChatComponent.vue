@@ -230,12 +230,17 @@
 
     <!-- Toaster Notification -->
     <transition name="fade">
-      <div
-        v-if="toaster.show"
-        @click="onToasterClick"
-        class="fixed z-50 right-6 bottom-6 bg-[#232B3E] border border-orange-400 text-white px-6 py-4 rounded-lg shadow-xl flex items-center space-x-3 animate-fade-in-up cursor-pointer"
-        style="min-width: 280px; max-width: 380px;"
-      >
+    <div
+      v-if="toaster.show"
+      @click="onToasterClick"
+      class="fixed z-50 right-6 bottom-6 bg-[#232B3E] text-white px-6 py-4 rounded-lg shadow-xl flex items-center space-x-3 animate-fade-in-up cursor-pointer"
+      :class="{
+        'border border-orange-400': !toaster.isTeamMention && !toaster.isUserMention,
+        'border-2 border-orange-600': toaster.isTeamMention,
+        'border-2 border-blue-600': toaster.isUserMention
+      }"
+      style="min-width: 280px; max-width: 380px;"
+    >
         <div class="text-orange-400 mr-3">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
@@ -245,7 +250,14 @@
           <div class="font-bold flex items-center">
             <span v-if="toaster.group" class="text-orange-400">{{ toaster.group }} - </span>
             <span>{{ toaster.sender }}</span>
-            <span class="ml-2 text-xs bg-orange-500 text-white px-2 py-0.5 rounded-full">New</span>
+            <span class="ml-2 text-xs px-2 py-0.5 rounded-full text-white" 
+              :class="{
+                'bg-orange-500': !toaster.isTeamMention && !toaster.isUserMention,
+                'bg-orange-600': toaster.isTeamMention,
+                'bg-blue-600': toaster.isUserMention
+              }">
+              {{ toaster.isTeamMention ? 'Team Mention' : toaster.isUserMention ? 'Mention' : 'New' }}
+            </span>
           </div>
           <div class="text-sm mt-1">
             {{ toaster.message }}
@@ -978,9 +990,26 @@ function listenForNotifications(userId) {
 }
 
 function showToaster(notification) {
+  // Process the message to strip HTML tags
+  let cleanMessage = '';
+  if (notification.message) {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = notification.message;
+    
+    // If it's a team mention notification, set a specific clean message
+    if (notification.is_team_mention) {
+      cleanMessage = 'Mentioned everyone in the team';
+    } else if (notification.is_user_mention) {
+      cleanMessage = 'Mentioned you in a message';
+    } else {
+      cleanMessage = tempDiv.textContent || tempDiv.innerText || notification.message;
+    }
+  }
+  
   toaster.value.show = true;
-  toaster.value.message = notification.message;
-  toaster.value.shortMessage = getShortMessage(notification.message);
+  toaster.value.message = cleanMessage;
+  toaster.value.shortMessage = cleanMessage.split(' ').slice(0, 2).join(' ') + 
+                               (cleanMessage.split(' ').length > 2 ? '...' : '');
   toaster.value.sender = notification.sender_name;
   toaster.value.group = notification.group_name || '';
   toaster.value.time = formatTime(notification.created_at);
@@ -988,6 +1017,9 @@ function showToaster(notification) {
   toaster.value.group_id = notification.group_id || null;
   toaster.value.user_id = notification.sender_id || null;
   toaster.value.message_id = notification.message_id || null;
+  toaster.value.isTeamMention = notification.is_team_mention || false;
+  toaster.value.isUserMention = notification.is_user_mention || false;
+  
   if (toaster.value.timeout) clearTimeout(toaster.value.timeout);
   toaster.value.timeout = setTimeout(() => {
     toaster.value.show = false;
@@ -1001,7 +1033,13 @@ function dismissToaster() {
 
 function getShortMessage(msg) {
   if (!msg) return '';
-  return msg.split(' ').slice(0, 2).join(' ') + (msg.split(' ').length > 2 ? '...' : '');
+  
+  // Strip HTML tags for notification display
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = msg;
+  const textContent = tempDiv.textContent || tempDiv.innerText || '';
+  
+  return textContent.split(' ').slice(0, 2).join(' ') + (textContent.split(' ').length > 2 ? '...' : '');
 }
 
 async function onToasterClick() {
@@ -1259,7 +1297,7 @@ function insertMention(mentionData) {
   // Create the mention element
   let mentionHTML = '';
   if (mentionData.type === 'team') {
-    mentionHTML = `<span class="mention mention-team bg-orange-700/30 text-white px-1 py-0.5 rounded-md mx-0.5">@Team</span>&nbsp;`;
+    mentionHTML = `<span class="mention mention-team bg-orange-700/30 text-white px-1 py-0.5 rounded-md mx-0.5">@team</span>&nbsp;`;
   } else {
     mentionHTML = `<span class="mention mention-user bg-blue-600/30 text-white px-1 py-0.5 rounded-md mx-0.5" data-user-id="${mentionData.id}">@${mentionData.name}</span>&nbsp;`;
   }

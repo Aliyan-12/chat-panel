@@ -7,6 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\Group;
 use App\Models\Message;
+use App\Models\User;
+use App\Notifications\NewMessageNotification;
+use App\Notifications\TeamMentionNotification;
+use App\Notifications\UserMentionNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -159,20 +163,54 @@ class ConversationController extends Controller
         $message->load('user');
         broadcast(new NewMessage($message))->toOthers();
 
+        // Check for mentions in the message content
+        $hasTeamMention = false;
+        $mentionedUserIds = [];
+        
+        if ($messageText) {
+            // Check for @team mention
+            if (strpos($messageText, 'class="mention mention-team') !== false) {
+                $hasTeamMention = true;
+            }
+            
+            // Extract user IDs from user mentions
+            preg_match_all('/data-user-id="(\d+)"/', $messageText, $matches);
+            if (!empty($matches[1])) {
+                $mentionedUserIds = $matches[1];
+            }
+        }
+        
         // Send notification to recipient(s)
         if ($conversation->group_id) {
             // Group chat: notify all group members except sender
             $groupUsers = $conversation->group->users()->where('users.id', '!=', $authId)->get();
-            // dd($groupUsers);
-            foreach ($groupUsers as $user) {
-                $user->notify(new \App\Notifications\NewMessageNotification($message));
+            
+            if ($hasTeamMention) {
+                // Team mention - send TeamMentionNotification to all users
+                foreach ($groupUsers as $user) {
+                    $user->notify(new TeamMentionNotification($message));
+                }
+            } else if (!empty($mentionedUserIds)) {
+                // User mentions - send UserMentionNotification to mentioned users and regular notification to others
+                foreach ($groupUsers as $user) {
+                    if (in_array($user->id, $mentionedUserIds)) {
+                        $user->notify(new UserMentionNotification($message));
+                    } else {
+                        $user->notify(new NewMessageNotification($message));
+                    }
+                }
+            } else {
+                // No mentions - send regular notification to all
+                foreach ($groupUsers as $user) {
+                    $user->notify(new NewMessageNotification($message));
+                }
             }
         } else {
             // One-to-one chat: notify the other user
             $recipientId = $conversation->sender_id == $authId ? $conversation->reciever_id : $conversation->sender_id;
-            $recipient = \App\Models\User::find($recipientId);
+            $recipient = User::find($recipientId);
             if ($recipient) {
-                $recipient->notify(new \App\Notifications\NewMessageNotification($message));
+                $recipient->notify(new NewMessageNotification($message));
             }
         }
 
