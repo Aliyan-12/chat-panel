@@ -46,6 +46,41 @@ class UserController extends Controller
     }
     
     /**
+     * Search users by query parameter
+     */
+    public function searchByQuery(Request $request)
+    {
+        if (!Auth::check()) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+        
+        $query = $request->query('query');
+        
+        if (!$query) {
+            return response()->json(['users' => []]);
+        }
+        
+        $users = User::where('id', '!=', auth()->id())
+            ->where(function($q) use ($query) {
+                $q->where('name', 'like', '%' . $query . '%')
+                  ->orWhere('email', 'like', '%' . $query . '%');
+            })
+            ->select('id', 'name', 'email')
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'profile_photo_url' => $user->profile_photo_url,
+                    'type' => 'user'
+                ];
+            });
+            
+        return response()->json(['users' => $users]);
+    }
+    
+    /**
      * Get all users (except the authenticated user) and groups the user belongs to
      */
     public function search(Request $request)

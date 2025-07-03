@@ -17,6 +17,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
     
     Route::get('/users', [UserController::class, 'index']);
+    Route::get('/users/search', [UserController::class, 'searchByQuery']);
     Route::get('/search', [UserController::class, 'search']);
     
     Route::post('/groups/create-or-get', [GroupController::class, 'createOrGet']);

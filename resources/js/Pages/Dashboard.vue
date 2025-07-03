@@ -31,9 +31,9 @@ defineProps({
                     </div>
                 </div>
 
+                <pre>{{ isAdmin }}</pre>
                 <div v-if="isAdmin">
                     i am only for admins
-                
                 </div>
             </div>
         </div>

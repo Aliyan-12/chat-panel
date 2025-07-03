@@ -185,17 +185,27 @@
                 </svg>
                 <input type="file" class="hidden" @change="onFileChange" ref="fileInput" />
               </label>
-          <div 
-            ref="messageInput"
-            contenteditable="true"
-            class="flex-1 px-4 py-2 border border-[#232B3E] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-[#232B3E] text-white text-sm placeholder-gray-400 overflow-y-auto"
-            :placeholder="fileToSend ? '' : 'Type a message... (Enter to send, Shift+Enter for new line)'"
-            @input="handleInput"
-            @paste="handlePaste"
-            @keydown="handleKeyDown"
-            role="textbox"
-            aria-multiline="true"
-          ></div>
+<div class="flex-1 relative"> <!-- Added wrapper div for positioning -->
+            <div 
+              ref="messageInput"
+              contenteditable="true"
+              class="w-full px-4 py-2 border border-[#232B3E] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-[#232B3E] text-white text-sm placeholder-gray-400 overflow-y-auto"
+              :placeholder="fileToSend ? '' : 'Type a message... (Enter to send, Shift+Enter for new line, @ to mention)'"
+              @input="handleInput"
+              @paste="handlePaste"
+              @keydown="handleKeyDown"
+              role="textbox"
+              aria-multiline="true"
+            ></div>
+            
+            <!-- User Mention Dropdown -->
+            <UserMention 
+              :show="showMentionDropdown" 
+              :users="selectedItem && selectedItem.type === 'group' ? selectedItem.users : []"
+              @select="insertMention"
+              @close="closeMentionDropdown"
+            />
+          </div>
           <button 
             type="submit" 
             class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-400 transition"
@@ -377,6 +387,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
+import UserMention from '@/Components/Chat/UserMention.vue';
 
 const currentUser = ref(null);
 const searchResults = ref({ users: [], groups: [] });
@@ -439,6 +450,13 @@ const searchResultIndex = ref(0);
 // Add these variables for contenteditable message input
 const messageInput = ref(null);
 const messageContent = ref('');
+
+// Add variables for @mention functionality
+const showMentionDropdown = ref(false);
+const mentionDropdownPosition = ref({ top: 0, left: 0 });
+const mentionSearchText = ref('');
+const mentionStartPosition = ref(null);
+const mentionRange = ref(null);
 
 // Add isMessageEmpty computed property
 const isMessageEmpty = computed(() => {
@@ -700,6 +718,9 @@ function handleInput(e) {
   if (messageContent.value === '<br>') {
     messageContent.value = '';
   }
+  
+  // Check for @ symbol to trigger mention dropdown
+  checkForMentionTrigger();
   
   // console.log('Input HTML content:', messageContent.value);
   sendTypingIndicator();
@@ -1102,7 +1123,160 @@ onMounted(async () => {
 // Clean up when component is unmounted
 onUnmounted(() => {
   leaveChannels();
+  document.removeEventListener('click', handleClickOutside);
 });
+
+// Add click outside listener for mention dropdown
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+// Function to handle click outside of mention dropdown
+function handleClickOutside(event) {
+  if (showMentionDropdown.value && messageInput.value && !messageInput.value.contains(event.target)) {
+    closeMentionDropdown();
+  }
+}
+
+// Add these functions for @mention functionality
+function checkForMentionTrigger() {
+  // If not in a group chat, don't do anything
+  if (!selectedItem.value || selectedItem.value.type !== 'group') {
+    return;
+  }
+  
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return;
+  
+  const range = selection.getRangeAt(0);
+  const preCaretRange = range.cloneRange();
+  preCaretRange.selectNodeContents(messageInput.value);
+  preCaretRange.setEnd(range.endContainer, range.endOffset);
+  const text = preCaretRange.toString();
+  
+  // Look for @ symbol in the text, considering only the last @
+  const lastAtIndex = text.lastIndexOf('@');
+  
+  if (lastAtIndex >= 0) {
+    // Check if we should show the dropdown
+    const textAfterAt = text.substring(lastAtIndex + 1);
+    
+    // If we already have a dropdown open and the text has changed
+    if (showMentionDropdown.value) {
+      mentionSearchText.value = textAfterAt;
+      
+      // If the user deleted the @ symbol, close the dropdown
+      if (lastAtIndex === -1) {
+        closeMentionDropdown();
+      }
+    } else {
+      // Only open dropdown if @ is the latest character or followed by text (not spaces)
+      if (lastAtIndex === text.length - 1 || textAfterAt.trim()) {
+        mentionStartPosition.value = range.cloneRange();
+        mentionSearchText.value = textAfterAt;
+        initializeMentionDropdown();
+      }
+    }
+  } else if (showMentionDropdown.value) {
+    // If there's no @ in the text but dropdown is open, close it
+    closeMentionDropdown();
+  }
+}
+
+function initializeMentionDropdown() {
+  if (!messageInput.value) return;
+  
+  // Set the range for later replacing the @mention
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return;
+  
+  const range = selection.getRangeAt(0);
+  const preCaretRange = range.cloneRange();
+  preCaretRange.selectNodeContents(messageInput.value);
+  preCaretRange.setEnd(range.endContainer, range.endOffset);
+  const text = preCaretRange.toString();
+  
+  // Find the last @ position
+  const lastAtIndex = text.lastIndexOf('@');
+  if (lastAtIndex === -1) return;
+  
+  // No need to set position as we're using fixed positioning via CSS
+  
+  // Create a range that includes the @ symbol and any text after it
+  // This will be replaced when a mention is selected
+  const mentionTextRange = document.createRange();
+  const startNode = preCaretRange.startContainer;
+  let startOffset = 0;
+  
+  // Find the node and offset where the @ symbol is
+  let currentLength = 0;
+  const nodeStack = [messageInput.value];
+  let foundStart = false;
+  
+  while (nodeStack.length > 0) {
+    const currentNode = nodeStack.pop();
+    
+    if (currentNode.nodeType === Node.TEXT_NODE) {
+      const nodeText = currentNode.textContent;
+      if (currentLength + nodeText.length >= lastAtIndex) {
+        const offsetInNode = lastAtIndex - currentLength;
+        mentionTextRange.setStart(currentNode, offsetInNode);
+        mentionTextRange.setEnd(range.endContainer, range.endOffset);
+        foundStart = true;
+        break;
+      }
+      currentLength += nodeText.length;
+    } else if (currentNode.nodeType === Node.ELEMENT_NODE) {
+      const children = Array.from(currentNode.childNodes).reverse();
+      nodeStack.push(...children);
+    }
+  }
+  
+  if (foundStart) {
+    mentionRange.value = mentionTextRange;
+  }
+  
+  showMentionDropdown.value = true;
+}
+
+function closeMentionDropdown() {
+  showMentionDropdown.value = false;
+  mentionRange.value = null;
+  mentionSearchText.value = '';
+}
+
+function insertMention(mentionData) {
+  if (!messageInput.value || !mentionRange.value) {
+    closeMentionDropdown();
+    return;
+  }
+  
+  // Save selection
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(mentionRange.value);
+  
+  // Create the mention element
+  let mentionHTML = '';
+  if (mentionData.type === 'team') {
+    mentionHTML = `<span class="mention mention-team bg-orange-700/30 text-white px-1 py-0.5 rounded-md mx-0.5">@Team</span>&nbsp;`;
+  } else {
+    mentionHTML = `<span class="mention mention-user bg-blue-600/30 text-white px-1 py-0.5 rounded-md mx-0.5" data-user-id="${mentionData.id}">@${mentionData.name}</span>&nbsp;`;
+  }
+  
+  // Replace the @text with the mention element
+  document.execCommand('delete');
+  document.execCommand('insertHTML', false, mentionHTML);
+  
+  // Update messageContent with the new HTML
+  messageContent.value = messageInput.value.innerHTML;
+  
+  // Close dropdown
+  closeMentionDropdown();
+  
+  // Focus back on input
+  messageInput.value.focus();
+}
 
 // Add this function after listenForNewMessages
 function listenForTypingIndicators(conversationId) {
@@ -1252,12 +1426,33 @@ async function removeParticipant(userId) {
 }
 
 function handleKeyDown(e) {
+  // If the mention dropdown is open, let it handle keyboard events
+  if (showMentionDropdown.value) {
+    if (e.key === 'Escape') {
+      closeMentionDropdown();
+      e.preventDefault();
+      return;
+    }
+    
+    // Let the dropdown component handle up/down/enter
+    if (['ArrowUp', 'ArrowDown', 'Enter'].includes(e.key)) {
+      return;
+    }
+  }
+  
+  // If @ is pressed, show mention dropdown
+  if (e.key === '@' && selectedItem.value && selectedItem.value.type === 'group') {
+    // Show mention dropdown after @ is typed
+    mentionStartPosition.value = window.getSelection().getRangeAt(0).cloneRange();
+    setTimeout(initializeMentionDropdown, 10); // Wait for the @ to be inserted
+  }
+  
   // If Enter is pressed without Shift, send the message
-  console.log(e.shiftKey);
-  console.log(e.key);
-  console.log('1234');
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
+    if (showMentionDropdown.value) {
+      return; // Don't send if mention dropdown is open
+    }
     sendMessage();
   }
   // If Shift+Enter is pressed, insert a line break
@@ -1270,9 +1465,6 @@ function handleKeyDown(e) {
     
     // Update the message content with the raw HTML content
     messageContent.value = messageInput.value.innerHTML;
-    
-    // Log the content for debugging
-    console.log('Message content after line break:', messageContent.value);
   }
 }
 </script>
@@ -1404,6 +1596,24 @@ function handleKeyDown(e) {
   max-height: 8rem;
   overflow-y: auto;
   line-height: 1.5;
+}
+
+/* Mention styling */
+.mention {
+  display: inline-block;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mention-team {
+  background-color: rgba(180, 83, 9, 0.3);
+  color: #ffffff;
+}
+
+.mention-user {
+  background-color: rgba(37, 99, 235, 0.3);
+  color: #ffffff;
 }
 
 [contenteditable=true] br {

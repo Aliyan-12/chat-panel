@@ -50,6 +50,7 @@ Route::middleware('auth')->group(function () {
         $users = App\Models\User::where('id', '!=', $currentUserId)->get();
         return response()->json(['users' => $users]);
     });
+    Route::get('/users/search', [UserController::class, 'searchByQuery']);
     
     // Search for users and groups
     Route::get('/search', function (Request $request) {
